@@ -1,0 +1,44 @@
+# Render Blueprint — CSCI 602 Template
+# Docs: https://docs.render.com/blueprint-spec
+
+services:
+  # Spring Boot backend API
+  - type: web
+    name: csci-602-api
+    env: java
+    buildCommand: ./mvnw -B package -DskipTests
+    startCommand: java -jar target/csci-602-1.0.0.jar
+    envVars:
+      # Database connection — references the PostgreSQL service below
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: csci-602-db
+          property: connectionURI
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: csci-602-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: csci-602-db
+          property: password
+      # Activate the "render" Spring profile
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+
+  # React (Vite) static frontend
+  - type: web
+    name: csci-602-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      # SPA fallback — send all routes to index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+# PostgreSQL database (free tier)
+databases:
+  - name: csci-602-db
+    plan: free
