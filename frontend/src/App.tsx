@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import { RequireAuth } from './auth/RequireAuth'
+import { Login } from './pages/Login'
+import { Register } from './pages/Register'
+import { Users } from './pages/Users'
 
 function Home() {
     const [verification, setVerification] = useState('Loading...')
+    const { isAuthenticated } = useAuth()
 
     useEffect(() => {
         fetch('http://localhost:5001/verification')
@@ -19,7 +25,19 @@ function Home() {
             <h2>Backend Connection</h2>
             <p>Verification Code: {verification}</p>
 
-            <Link to="/about">About</Link>
+            <nav>
+                <Link to="/about">About</Link>
+                {' | '}
+                {isAuthenticated ? (
+                    <Link to="/users">Users</Link>
+                ) : (
+                    <>
+                        <Link to="/login">Log In</Link>
+                        {' | '}
+                        <Link to="/register">Register</Link>
+                    </>
+                )}
+            </nav>
         </div>
     )
 }
@@ -37,10 +55,22 @@ function About() {
 function App() {
     return (
         <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-            </Routes>
+            <AuthProvider>
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route
+                        path="/users"
+                        element={
+                            <RequireAuth>
+                                <Users />
+                            </RequireAuth>
+                        }
+                    />
+                </Routes>
+            </AuthProvider>
         </BrowserRouter>
     )
 }

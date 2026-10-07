@@ -1,0 +1,2 @@
+ALTER TABLE accounts
+    ALTER COLUMN password TYPE VARCHAR(255);

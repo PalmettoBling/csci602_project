@@ -66,6 +66,15 @@ public class ActivityEndpoints {
         }
     }
 
+    @GetMapping(value = "/user/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<Activity>> getActivitiesByUser(@PathVariable Long userId) {
+        if (!userRepository.existsById(userId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        return new ResponseEntity<>(activityRepository.findByUserId(userId), HttpStatus.OK);
+    }
+
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Activity> updateActivity(
             @PathVariable Long id,

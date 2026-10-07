@@ -3,6 +3,9 @@ info:
     description: Template Spring Boot API for use of CSCI 602
     name: csci-602
     version: 1.0.0
+jwt:
+  secret: ghci-test-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256
+  expiration-ms: 3600000
 management:
   endpoint:
     health:

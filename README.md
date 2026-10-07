@@ -104,7 +104,7 @@ The React dev server starts on [http://localhost:5173](http://localhost:5173).
 │   ├── main/
 │   │   ├── java/edu/citadel/
 │   │   │   ├── api/           # REST controllers
-│   │   │   ├── config/        # Spring configuration (SecurityConfig stub)
+│   │   │   ├── config/        # Spring configuration (JWT security)
 │   │   │   ├── dal/           # Data access layer (repositories, models)
 │   │   │   └── main/          # Application entry point
 │   │   └── resources/
@@ -122,14 +122,14 @@ The React dev server starts on [http://localhost:5173](http://localhost:5173).
 
 ## Stub Files
 
-The following files are included as starting points for specific assignments:
+The following files were provided as starting points and are now implemented:
 
-| File | Assignment |
-|---|---|
-| `src/main/java/edu/citadel/config/SecurityConfig.java` | Iteration 1 — JWT Authentication |
-| `src/test/java/edu/citadel/bdd/StepDefinitions.java` | Iteration 1 — Cucumber Integration Tests |
-| `frontend/README.md` | Iteration 0 — React Frontend Scaffold |
-| `render.yaml` | Iteration 2 — Render Deployment |
+| File | Assignment | Status |
+|---|---|---|
+| `src/main/java/edu/citadel/config/SecurityConfig.java` | Iteration 1 — JWT Authentication | Implemented |
+| `src/test/java/edu/citadel/bdd/StepDefinitions.java` | Iteration 1 — Cucumber Integration Tests | Implemented |
+| `frontend/README.md` | Iteration 0 — React Frontend Scaffold | Implemented |
+| `render.yaml` | Iteration 2 — Render Deployment | Not started |
 
 ## Useful Commands
 
