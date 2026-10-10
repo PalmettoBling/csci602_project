@@ -149,3 +149,25 @@ The following files are included as starting points for specific assignments:
 - [Maven in 5 Minutes](https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html)
 - [Render — Deployment Docs](https://render.com/docs)
 - [JaCoCo — Code Coverage](https://www.jacoco.org/jacoco/trunk/doc/)
+
+## Iteration 1: User Activity Queries
+
+- `GET /users/{userId}/activities`: user history ordered by activity date descending, then ID descending.
+- `GET /users/{userId}/activities/search?type=Running&from=2026-10-01&to=2026-10-10`: optional case-insensitive exact type and inclusive date filters. Either date may be omitted; no filters returns the user's history. Type whitespace is trimmed.
+- `GET /users/{userId}/activity-types`: distinct recorded type strings for that user, alphabetically sorted. This is not a predefined exercise catalog.
+
+Backlog mapping (numbers below are GitHub issue IDs):
+
+| Endpoint | Backlog story |
+|---|---|
+| `GET /users/{userId}/activities` | [View Activity History](https://github.com/PalmettoBling/csci602_project/issues/12) |
+| `GET /users/{userId}/activities/search` | [Filter Activity History](https://github.com/PalmettoBling/csci602_project/issues/17) |
+| `GET /users/{userId}/activity-types` | [Select Exercise Type](https://github.com/PalmettoBling/csci602_project/issues/9), supporting reuse of previously recorded types |
+
+Successful requests return `200`, including `[]` when there are no matches. Unknown users return `404`. Nonpositive or malformed user IDs, blank or overlength types (100 characters maximum), invalid `yyyy-MM-dd` dates, and reversed date ranges return `400`.
+
+These queries use the existing PostgreSQL tables and JPA repositories. Every activity query is scoped to the selected user. Authentication is not yet implemented; user existence checks do not authorize access. Future user authorization can be added at the shared controller user-check boundary or through Spring Security.
+
+`UserActivityEndpointsTest` exercises real PostgreSQL queries and HTTP behavior using MockMvc. Fixtures run in transactions and roll back. Run with `./mvnw test` using the configured database, or `./mvnw test -Dspring.profiles.active=ghci` against the CI PostgreSQL service.
+
+For database-independent HTTP contract checks, run `./mvnw -Dtest=UserActivityEndpointsUnitTest -Dsurefire.excludeJUnit5Engines=cucumber test`. The existing Cucumber configuration has unfinished glue and is excluded from compilation; selecting the Jupiter engine avoids unrelated Cucumber discovery during these checks. Run all JUnit tests with `./mvnw -Dsurefire.excludeJUnit5Engines=cucumber test`; PostgreSQL must be available at the datasource configured for the active profile.
