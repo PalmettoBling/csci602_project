@@ -25,6 +25,10 @@ services:
       # Activate the "render" Spring profile
       - key: SPRING_PROFILES_ACTIVE
         value: render
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGIN
+        value: https://csci-602-frontend.onrender.com
 
   # React (Vite) static frontend
   - type: web
@@ -32,6 +36,9 @@ services:
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://csci-602-api.onrender.com
     routes:
       # SPA fallback — send all routes to index.html
       - type: rewrite

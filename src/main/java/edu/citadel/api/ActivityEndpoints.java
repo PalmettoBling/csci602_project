@@ -1,8 +1,10 @@
 package edu.citadel.api;
 
 import edu.citadel.api.request.ActivityRequestBody;
+import edu.citadel.dal.AccountRepository;
 import edu.citadel.dal.ActivityRepository;
 import edu.citadel.dal.UserRepository;
+import edu.citadel.dal.model.Account;
 import edu.citadel.dal.model.Activity;
 import edu.citadel.dal.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -19,21 +22,30 @@ public class ActivityEndpoints {
 
     private final ActivityRepository activityRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
 
     @Autowired
     public ActivityEndpoints(ActivityRepository activityRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             AccountRepository accountRepository) {
         this.activityRepository = activityRepository;
         this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
     }
 
     @PostMapping(
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Activity> createActivity(
-            @RequestBody ActivityRequestBody activityRequestBody) {
+            @RequestBody ActivityRequestBody activityRequestBody,
+            Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
-        User user = userRepository.findById(activityRequestBody.getUserId()).orElse(null);
+        User user = userRepository.findByIdAndOwnerAccountId(activityRequestBody.getUserId(), ownerAccountId)
+                .orElse(null);
 
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -51,13 +63,23 @@ public class ActivityEndpoints {
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<Activity>> getAllActivities() {
-        return new ResponseEntity<>(activityRepository.findAll(), HttpStatus.OK);
+    public ResponseEntity<List<Activity>> getAllActivities(Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return new ResponseEntity<>(activityRepository.findAllByUser_OwnerAccountId(ownerAccountId), HttpStatus.OK);
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Activity> getById(@PathVariable Long id) {
-        Activity activity = activityRepository.findById(id).orElse(null);
+    public ResponseEntity<Activity> getById(@PathVariable Long id, Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Activity activity = activityRepository.findByIdAndUser_OwnerAccountId(id, ownerAccountId).orElse(null);
 
         if (activity != null) {
             return new ResponseEntity<>(activity, HttpStatus.OK);
@@ -67,8 +89,13 @@ public class ActivityEndpoints {
     }
 
     @GetMapping(value = "/user/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<Activity>> getActivitiesByUser(@PathVariable Long userId) {
-        if (!userRepository.existsById(userId)) {
+    public ResponseEntity<List<Activity>> getActivitiesByUser(@PathVariable Long userId, Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (userRepository.findByIdAndOwnerAccountId(userId, ownerAccountId).isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
@@ -78,9 +105,14 @@ public class ActivityEndpoints {
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Activity> updateActivity(
             @PathVariable Long id,
-            @RequestBody ActivityRequestBody activityRequestBody) {
+            @RequestBody ActivityRequestBody activityRequestBody,
+            Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
-        Activity activity = activityRepository.findById(id).orElse(null);
+        Activity activity = activityRepository.findByIdAndUser_OwnerAccountId(id, ownerAccountId).orElse(null);
 
         if (activity == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -94,12 +126,23 @@ public class ActivityEndpoints {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteActivity(@PathVariable Long id) {
-        if (!activityRepository.existsById(id)) {
+    public ResponseEntity<Void> deleteActivity(@PathVariable Long id, Principal principal) {
+        Long ownerAccountId = currentAccountId(principal);
+        if (ownerAccountId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Activity activity = activityRepository.findByIdAndUser_OwnerAccountId(id, ownerAccountId).orElse(null);
+        if (activity == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        activityRepository.deleteById(id);
+        activityRepository.delete(activity);
         return ResponseEntity.noContent().build();
+    }
+
+    private Long currentAccountId(Principal principal) {
+        Account account = accountRepository.findAccountByUsername(principal.getName());
+        return account == null ? null : account.getUser_id();
     }
 }

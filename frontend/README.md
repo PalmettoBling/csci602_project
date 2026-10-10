@@ -1,12 +1,11 @@
 # Frontend
 
-This directory will contain the React (Vite) frontend for your project.
+React (Vite) frontend for the CSCI 602 semester project.
 
-To scaffold:
 ```bash
-npm create vite@latest . -- --template react-ts
 npm install
 npm run dev
 ```
 
-See **Iteration 0** requirements for details.
+The dev server uses the API at `http://localhost:5001` by default. Set
+`VITE_API_BASE_URL` to use a different API URL.

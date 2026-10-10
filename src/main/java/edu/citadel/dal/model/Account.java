@@ -1,5 +1,6 @@
 package edu.citadel.dal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.sql.Timestamp;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -17,6 +18,7 @@ public class Account {
   @GeneratedValue(strategy= GenerationType.IDENTITY)
   private Long user_id;
   private String username;
+  @JsonIgnore
   private String password;
   private String email;
   @CreationTimestamp

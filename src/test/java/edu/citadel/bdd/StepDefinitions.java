@@ -123,6 +123,23 @@ public class StepDefinitions {
         assertNotNull(authToken, "Registration response should contain a token");
     }
 
+    @Given("I am authenticated as a different registered user")
+    public void i_am_authenticated_as_a_different_registered_user() {
+        Map<String, Object> registration = new HashMap<>();
+        registration.put("username", "otheruser");
+        registration.put("password", "secret123");
+        registration.put("email", "otheruser@example.com");
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(registration, jsonHeaders());
+        ResponseEntity<String> response =
+                restTemplate.exchange("/auth/register", HttpMethod.POST, entity, String.class);
+
+        assertEquals(HttpStatus.CREATED.value(), response.getStatusCode().value(),
+                "Expected registration to succeed: " + response.getBody());
+        authToken = readJsonField(response.getBody(), "token");
+        assertNotNull(authToken, "Registration response should contain a token");
+    }
+
     // ---------------------------------------------------------------
     // Request execution
     // ---------------------------------------------------------------
@@ -205,6 +222,15 @@ public class StepDefinitions {
                 "Expected response body to contain '" + expectedContent + "' but was: " + body);
     }
 
+    @Then("the response body should not contain {string}")
+    public void the_response_body_should_not_contain(String unexpectedContent) {
+        assertNotNull(lastResponse, "No response has been received yet");
+        String body = lastResponse.getBody();
+        assertNotNull(body, "Response body was null");
+        assertTrue(!body.contains(unexpectedContent),
+                "Expected response body not to contain '" + unexpectedContent + "' but was: " + body);
+    }
+
     @Then("the response body should contain a JSON field {string}")
     public void the_response_body_should_contain_a_json_field(String fieldName) {
         assertNotNull(lastResponse, "No response has been received yet");
@@ -212,6 +238,19 @@ public class StepDefinitions {
         assertNotNull(value, "Expected response body to contain field '" + fieldName + "' but was: "
                 + lastResponse.getBody());
         assertTrue(!value.isBlank(), "Expected field '" + fieldName + "' to be non-blank");
+    }
+
+    @Then("the response body should not contain a JSON field {string}")
+    public void the_response_body_should_not_contain_a_json_field(String fieldName) {
+        assertNotNull(lastResponse, "No response has been received yet");
+        try {
+            JsonNode responseBody = objectMapper.readTree(lastResponse.getBody());
+            assertTrue(responseBody == null || !responseBody.has(fieldName),
+                    "Expected response body not to contain field '" + fieldName + "' but was: "
+                            + lastResponse.getBody());
+        } catch (Exception e) {
+            fail("Failed to parse JSON response: " + lastResponse.getBody() + " (" + e.getMessage() + ")");
+        }
     }
 
     // ---------------------------------------------------------------

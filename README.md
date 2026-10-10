@@ -51,19 +51,26 @@ cd csci-602
 ./mvnw clean compile
 ```
 
-### 3. Configure Your Database
+### 3. Configure Your Database and JWT
 
-Update `src/main/resources/application.yaml` with the database credentials provided by your instructor:
+Configure the API with environment variables rather than committing credentials to
+`application.yaml`:
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://{host}:{port}/{database}
-    username: {username}
-    password: {password}
+```text
+SPRING_DATASOURCE_URL=jdbc:postgresql://{host}:{port}/{database}
+SPRING_DATASOURCE_USERNAME={username}
+SPRING_DATASOURCE_PASSWORD={password}
+JWT_SECRET={random value of at least 32 characters}
 ```
 
-> **⚠️ Do not commit your database credentials to your repository.** Edit `application.yaml` locally but make sure you do not push these changes. Your credentials are unique to you.
+Generate a unique, random `JWT_SECRET` for each deployed environment. The
+`ghci` and `test` Spring profiles provide test-only signing keys; the default
+profile intentionally fails to start unless `JWT_SECRET` is supplied.
+
+The default CORS origin is the Vite development URL, `http://localhost:5173`.
+Set `CORS_ALLOWED_ORIGIN` to the frontend's origin when deploying. For the
+Render blueprint, set the `JWT_SECRET` secret when prompted; the API and frontend
+origins are configured in `render.yaml`.
 
 ### 4. Run the API
 
@@ -76,23 +83,26 @@ The API starts on port 5001. Access Swagger UI at [http://localhost:5001/swagger
 ### 5. Run Tests
 
 ```bash
-./mvnw test
+./mvnw test -Dspring.profiles.active=ghci
 ```
 
-This runs JUnit unit tests and Cucumber integration tests. JaCoCo coverage reports are generated at `target/site/jacoco/index.html`.
+This runs JUnit unit tests and Cucumber integration tests against PostgreSQL at
+`localhost:5433` (database `testdb`, username/password `admin`/`admin`), matching
+the GitHub Actions service configuration. JaCoCo coverage reports are generated
+at `target/site/jacoco/index.html`.
 
-### 6. Frontend Setup (Iteration 0)
+### 6. Frontend Setup
 
-See `frontend/README.md` for instructions on scaffolding the React (Vite) frontend.
+See `frontend/README.md` for frontend development instructions.
 
 ```bash
 cd frontend
-npm create vite@latest . -- --template react-ts
 npm install
 npm run dev
 ```
 
 The React dev server starts on [http://localhost:5173](http://localhost:5173).
+Set `VITE_API_BASE_URL` when the API is not running at `http://localhost:5001`.
 
 ## Project Structure
 

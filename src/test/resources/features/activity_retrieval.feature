@@ -24,3 +24,11 @@ Feature: Activity Retrieval by User
   Scenario: Accessing the activities endpoint without a token is rejected
     When I send a GET request to "/activities"
     Then the response status code should be 401
+
+  Scenario: A different account cannot retrieve another user's activities
+    Given I am authenticated as a different registered user
+    When I send an authenticated GET request to "/activities"
+    Then the response status code should be 200
+    And the response body should not contain "Running"
+    When I send an authenticated GET request to the created user's activities endpoint
+    Then the response status code should be 404

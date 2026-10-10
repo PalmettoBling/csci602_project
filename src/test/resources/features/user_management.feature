@@ -33,3 +33,16 @@ Feature: User Management
   Scenario: Accessing the users endpoint without a token is rejected
     When I send a GET request to "/users"
     Then the response status code should be 401
+
+  Scenario: A different account cannot access or change this user's record
+    Given I am authenticated as a different registered user
+    When I send an authenticated GET request to "/users"
+    Then the response status code should be 200
+    And the response body should not contain "Taylor Reed"
+    When I send an authenticated GET request to the created user's ID endpoint
+    Then the response status code should be 404
+    Given I have a user request with name "Unauthorized Change" and email "unauthorized@example.com"
+    When I send an authenticated PUT request to the created user's ID endpoint
+    Then the response status code should be 404
+    When I send an authenticated DELETE request to the created user's ID endpoint
+    Then the response status code should be 404

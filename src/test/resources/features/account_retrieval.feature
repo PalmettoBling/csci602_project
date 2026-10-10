@@ -13,11 +13,13 @@ Feature: Account Retrieval
     Then the response status code should be 200
     And the response body should contain "lookupuser"
     And the response body should contain "lookup@example.com"
+    And the response body should not contain a JSON field "password"
 
   Scenario: Retrieve an account by ID
     When I send a GET request to the created account's ID endpoint
     Then the response status code should be 200
     And the response body should contain "lookupuser"
+    And the response body should not contain a JSON field "password"
 
   Scenario: Look up a username that does not exist
     When I send a GET request to "/account/username/nonexistentuser"

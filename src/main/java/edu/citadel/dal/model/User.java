@@ -1,5 +1,6 @@
 package edu.citadel.dal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -15,6 +16,10 @@ public class User {
 
     @Column(nullable = false, unique = true)
     private String email;
+
+    @JsonIgnore
+    @Column(name = "owner_account_id")
+    private Long ownerAccountId;
 
     public User() {
     }
@@ -42,5 +47,13 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public Long getOwnerAccountId() {
+        return ownerAccountId;
+    }
+
+    public void setOwnerAccountId(Long ownerAccountId) {
+        this.ownerAccountId = ownerAccountId;
     }
 }
