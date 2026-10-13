@@ -182,3 +182,219 @@
     border-right-color: var(--border);
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Iteration 1 -- auth pages, nav and activity table.
+ * Uses the custom properties already defined in index.css so the new screens
+ * inherit the existing light/dark palette rather than introducing a second one.
+ * ------------------------------------------------------------------------- */
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.nav-links,
+.nav-session {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  color: var(--text);
+  font-size: 16px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
+}
+
+.nav a:hover {
+  color: var(--text-h);
+}
+
+.nav a.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent);
+}
+
+.nav-user {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.nav-user strong {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.page {
+  flex-grow: 1;
+  padding: 32px;
+  text-align: left;
+}
+
+@media (max-width: 1024px) {
+  .nav {
+    padding: 12px 20px;
+  }
+  .page {
+    padding: 24px 20px;
+  }
+}
+
+/* Auth forms sit in a readable column rather than spanning the full width. */
+.narrow {
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form label {
+  font-size: 15px;
+  color: var(--text-h);
+  margin-top: 12px;
+}
+
+.form input {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.form input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent-border);
+}
+
+.button {
+  font: inherit;
+  font-size: 16px;
+  margin-top: 24px;
+  padding: 9px 16px;
+  cursor: pointer;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 0.3s;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button-small {
+  margin-top: 0;
+  padding: 5px 12px;
+  font-size: 15px;
+}
+
+.banner {
+  font-size: 15px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin: 16px 0;
+  border: 1px solid transparent;
+}
+
+.banner-error {
+  color: #b4234a;
+  background: rgba(180, 35, 74, 0.08);
+  border-color: rgba(180, 35, 74, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  .banner-error {
+    color: #ff8ba7;
+    background: rgba(255, 139, 167, 0.12);
+    border-color: rgba(255, 139, 167, 0.35);
+  }
+}
+
+.field-error {
+  font-size: 14px;
+  color: #b4234a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .field-error {
+    color: #ff8ba7;
+  }
+}
+
+.error-text {
+  color: #b4234a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-text {
+    color: #ff8ba7;
+  }
+}
+
+.muted {
+  color: var(--text);
+}
+
+.small {
+  font-size: 14px;
+}
+
+.spaced {
+  margin-top: 24px;
+}
+
+.table {
+  width: 100%;
+  margin-top: 24px;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th {
+  font-weight: 500;
+  color: var(--text-h);
+}
