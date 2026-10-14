@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { useSession } from '../auth/session'
 
-/** An activity as returned by the API. */
+/**
+ * An activity as returned by GET /users/{userId}/activities. The response also
+ * carries the owning user, but the endpoint is already scoped to one user so
+ * there is nothing here that needs to read it.
+ */
 type Activity = {
   readonly id: number
   readonly activityType: string
   readonly durationMinutes: number
   readonly activityDate: string
-  readonly user: { readonly id: number } | null
 }
 
 type LoadState =
@@ -32,28 +35,17 @@ export default function Activities() {
     let active = true
 
     /*
-     * TODO (after feature/exercise-endpoints merges): replace this with
-     *
-     *     apiFetch<Activity[]>(`/users/${userId}/activities`)
-     *
-     * and drop the client-side filter below. That endpoint is being built on
-     * another branch, so building it here would conflict. The server already
-     * enforces that a token may only read its own /users/{userId}/... path, so
-     * the swap needs no other change.
-     *
-     * Until then this reads the collection endpoint and narrows to the signed-in
-     * user here. Note the difference that makes: the filtering is cosmetic, not
-     * a security boundary -- the response really does contain every user's rows.
+     * The user-scoped endpoint, served by UserActivityEndpoints. The server
+     * returns only this user's rows and the security rule on /users/{userId}/**
+     * rejects a token whose subject is a different id with a 403, so there is no
+     * client-side filtering to do -- and none that could be trusted anyway.
      */
-    apiFetch<Activity[]>('/activities')
+    apiFetch<Activity[]>(`/users/${userId}/activities`)
       .then((activities) => {
         if (!active) {
           return
         }
-        setState({
-          status: 'ready',
-          activities: activities.filter((activity) => activity.user?.id === userId),
-        })
+        setState({ status: 'ready', activities })
       })
       .catch((caught: unknown) => {
         if (!active) {
@@ -86,10 +78,7 @@ export default function Activities() {
       )}
 
       {state.status === 'ready' && state.activities.length === 0 && (
-        <p className="muted">
-          You have no recorded activities yet. Once the exercise endpoints are
-          merged you will be able to add some here.
-        </p>
+        <p className="muted">You have no recorded activities yet.</p>
       )}
 
       {state.status === 'ready' && state.activities.length > 0 && (

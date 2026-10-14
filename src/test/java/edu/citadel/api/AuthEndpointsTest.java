@@ -368,22 +368,24 @@ public class AuthEndpointsTest {
     }
 
     @Test
-    @DisplayName("user-scoped route: the owner passes authorization")
-    void userScopedRouteAllowsOwnId() {
+    @DisplayName("user-scoped route: the owner reaches the real handler and gets 200")
+    void userScopedRouteAllowsOwnIdThroughToHandler() {
         String username = uniqueUsername();
         long id = registerAndGetId(username);
         String token = login(username);
 
         Response response = get("/users/" + id + "/activities", token);
 
-        // The handler for this path lives on feature/exercise-endpoints and is
-        // deliberately not built here, so 404 is the expected outcome today. What
-        // matters is that authorization let the request through: neither 401 nor
-        // 403. When that branch merges this becomes a 200 with no change to
-        // SecurityConfig.
-        assertEquals(404, response.status(),
-                "own-id access should clear authorization and fall through to the "
-                        + "not-yet-merged handler, but got: " + response.body());
+        // UserActivityEndpoints now serves this path, so own-id access clears
+        // authorization and is answered by the handler itself. A freshly
+        // registered user has no activities, hence the empty array rather than
+        // any error. SecurityConfig needed no change for this to start working:
+        // the /users/{userId}/** rule already matched the route.
+        assertEquals(200, response.status(),
+                "own-id access should clear authorization and be served by "
+                        + "UserActivityEndpoints, but got: " + response.body());
+        assertEquals("[]", response.body().trim(),
+                "a newly registered user has no activity history yet");
     }
 
     @Test
