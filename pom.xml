@@ -145,7 +145,6 @@
                     </annotationProcessorPaths>
                     <testExcludes>
                         <testExclude>**/hw1/**</testExclude>
-                        <testExclude>**/bdd/**</testExclude>
                     </testExcludes>
                 </configuration>
             </plugin>
