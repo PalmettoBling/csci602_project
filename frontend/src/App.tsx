@@ -1,48 +1,34 @@
-import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
-
-function Home() {
-    const [verification, setVerification] = useState('Loading...')
-
-    useEffect(() => {
-        fetch('http://localhost:5001/verification')
-            .then(response => response.text())
-            .then(data => setVerification(data))
-            .catch(() => setVerification('Could not connect to backend'))
-    }, [])
-
-    return (
-        <div>
-            <h1>Semester Project</h1>
-            <p>Welcome to our CSCI 602 semester project.</p>
-
-            <h2>Backend Connection</h2>
-            <p>Verification Code: {verification}</p>
-
-            <Link to="/about">About</Link>
-        </div>
-    )
-}
-
-function About() {
-    return (
-        <div>
-            <h1>About</h1>
-            <p>This application was created for CSCI 602.</p>
-            <Link to="/">Home</Link>
-        </div>
-    )
-}
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import './App.css'
+import RequireAuth from './auth/RequireAuth'
+import Layout from './components/Layout'
+import About from './pages/About'
+import Activities from './pages/Activities'
+import Home from './pages/Home'
+import Login from './pages/Login'
+import NotFound from './pages/NotFound'
+import Register from './pages/Register'
 
 function App() {
-    return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-            </Routes>
-        </BrowserRouter>
-    )
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Everything nested here needs a valid session. */}
+          <Route element={<RequireAuth />}>
+            <Route path="/activities" element={<Activities />} />
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
 }
 
 export default App
