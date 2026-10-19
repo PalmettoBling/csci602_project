@@ -1,5 +1,7 @@
 package edu.citadel.bdd;
 
+import edu.citadel.auth.JwtTestSupport;
+import edu.citadel.config.JwtProperties;
 import edu.citadel.dal.model.Activity;
 import edu.citadel.dal.model.User;
 import edu.citadel.dal.ActivityRepository;
@@ -11,10 +13,13 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -42,10 +47,19 @@ public class StepDefinitions {
     private WebApplicationContext context;
 
     @Autowired
+    private FilterChainProxy springSecurityFilterChain;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private JwtEncoder jwtEncoder;
+
+    @Autowired
+    private JwtProperties jwtProperties;
 
     private Long userId;
     private MvcResult result;
@@ -57,7 +71,13 @@ public class StepDefinitions {
     private final List<String> testAccountUsernames = new ArrayList<>();
 
     private MockMvc mockMvc() {
-        return MockMvcBuilders.webAppContextSetup(context).build();
+        return MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(springSecurityFilterChain)
+                .build();
+    }
+
+    private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder request) {
+        return JwtTestSupport.asUser(request, jwtEncoder, jwtProperties, String.valueOf(userId));
     }
 
     @Given("a user exists with recorded activities")
@@ -95,31 +115,33 @@ public class StepDefinitions {
     @When("the user requests their activity history")
     public void requestActivityHistory() throws Exception {
         result = mockMvc().perform(
-                get("/users/" + userId + "/activities")
+                asUser(get("/users/" + userId + "/activities"))
         ).andReturn();
     }
 
     @When("the user searches for activities of type {string}")
     public void searchByType(String type) throws Exception {
         result = mockMvc().perform(
-                get("/users/" + userId + "/activities/search")
+                asUser(get("/users/" + userId + "/activities/search")
                         .param("type", type)
+                )
         ).andReturn();
     }
 
     @When("the user searches with a start date after the end date")
     public void invalidDateRange() throws Exception {
         result = mockMvc().perform(
-                get("/users/" + userId + "/activities/search")
+                asUser(get("/users/" + userId + "/activities/search")
                         .param("from", "2026-10-10")
                         .param("to", "2026-10-01")
+                )
         ).andReturn();
     }
 
     @When("the user requests their recorded exercise types")
     public void requestExerciseTypes() throws Exception {
         result = mockMvc().perform(
-                get("/users/" + userId + "/activity-types")
+                asUser(get("/users/" + userId + "/activity-types"))
         ).andReturn();
     }
 
