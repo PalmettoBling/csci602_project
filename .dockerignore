@@ -1,0 +1,12 @@
+.git
+.github
+target
+frontend
+.env
+.env.*
+**/application-local.yaml
+**/application-local.yml
+*.local.ps1
+*.local.sh
+.reports
+images
