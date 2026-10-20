@@ -1,37 +1,58 @@
-# Render Blueprint — CSCI 602 Template
+# Render Blueprint - activity tracker
 # Docs: https://docs.render.com/blueprint-spec
 
 services:
   # Spring Boot backend API
   - type: web
-    name: csci-602-api
-    env: java
-    buildCommand: ./mvnw -B package -DskipTests
-    startCommand: java -jar target/csci-602-1.0.0.jar
+    name: csci602-activity-api
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /health
     envVars:
       # Database connection — references the PostgreSQL service below
-      - key: SPRING_DATASOURCE_URL
+      - key: DB_HOST
         fromDatabase:
-          name: csci-602-db
-          property: connectionURI
+          name: csci602-activity-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: csci602-activity-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: csci602-activity-db
+          property: database
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
-          name: csci-602-db
+          name: csci602-activity-db
           property: user
       - key: SPRING_DATASOURCE_PASSWORD
         fromDatabase:
-          name: csci-602-db
+          name: csci602-activity-db
           property: password
       # Activate the "render" Spring profile
       - key: SPRING_PROFILES_ACTIVE
         value: render
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false
 
   # React (Vite) static frontend
   - type: web
-    name: csci-602-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
+    name: csci602-activity-web
+    runtime: static
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.17.1
+      - key: VITE_API_BASE_URL
+        sync: false
     routes:
       # SPA fallback — send all routes to index.html
       - type: rewrite
@@ -40,5 +61,5 @@ services:
 
 # PostgreSQL database (free tier)
 databases:
-  - name: csci-602-db
+  - name: csci602-activity-db
     plan: free

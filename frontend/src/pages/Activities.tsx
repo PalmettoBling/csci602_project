@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client'
 import { useSession } from '../auth/session'
+import ActivityWeather from '../components/ActivityWeather'
+import type { Weather } from '../components/ActivityWeather'
 
 /**
  * An activity as returned by GET /users/{userId}/activities. The response also
@@ -12,6 +14,7 @@ type Activity = {
   readonly activityType: string
   readonly durationMinutes: number
   readonly activityDate: string
+  readonly weather: Weather | null
 }
 
 type LoadState =
@@ -88,6 +91,7 @@ export default function Activities() {
               <th>Date</th>
               <th>Activity</th>
               <th>Duration</th>
+              <th>Weather</th>
             </tr>
           </thead>
           <tbody>
@@ -96,6 +100,20 @@ export default function Activities() {
                 <td>{activity.activityDate}</td>
                 <td>{activity.activityType}</td>
                 <td>{activity.durationMinutes} min</td>
+                <td>
+                  {userId !== undefined && (
+                    <ActivityWeather
+                      userId={userId}
+                      activityId={activity.id}
+                      activityDate={activity.activityDate}
+                      weather={activity.weather}
+                      onSaved={(weather) => setState((current) => current.status === 'ready' ? {
+                        ...current,
+                        activities: current.activities.map((item) => item.id === activity.id ? { ...item, weather } : item),
+                      } : current)}
+                    />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
