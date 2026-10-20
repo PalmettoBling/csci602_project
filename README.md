@@ -17,7 +17,7 @@ A fitness-activity tracker with a Spring Boot REST API and a React web client. U
 
 - Java 25
 - PostgreSQL
-- Node.js 20.19+ or 22.12+ and npm (for the frontend)
+- Node.js 20.19+ or 22.12+ and npm (for manual frontend startup)
 
 The Maven wrapper (`mvnw` / `mvnw.cmd`) downloads and uses the Maven version configured for this project; a separate Maven installation is not required.
 
@@ -53,7 +53,11 @@ From the repository root:
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell, run `.\mvnw.cmd spring-boot:run`. The API listens on [http://localhost:5001](http://localhost:5001). Swagger UI is at [http://localhost:5001/swagger-ui/index.html](http://localhost:5001/swagger-ui/index.html); health and application information are available at `/health` and `/info`.
+On Windows PowerShell, run `.\mvnw.cmd spring-boot:run`.
+
+The API listens on http://localhost:5001.
+
+Swagger UI is at http://localhost:5001/swagger-ui/index.html; health and application information are available at `/health` and `/info`.
 
 ### 4. Start the frontend
 
@@ -65,7 +69,40 @@ npm ci
 npm run dev
 ```
 
-On Windows PowerShell, the same commands work. Open the Vite development URL printed in the terminal (normally [http://localhost:5173](http://localhost:5173)). The Vite server proxies API requests to `http://localhost:5001`, so run the backend as well. For a frontend build served from a different host, set `VITE_API_BASE_URL` at build time to the API's base URL; the local development proxy is not included in production builds.
+On Windows PowerShell, the same commands work. Open the Vite development URL printed in the terminal (normally http://localhost:5173). The Vite server proxies API requests to `http://localhost:5001`, so run the backend as well.
+
+For a frontend build served from a different host, set `VITE_API_BASE_URL` at build time to the API's base URL; the local development proxy is not included in production builds.
+
+### 5. Windows Local Launcher (Alternative)
+
+If you have the ignored `run-local.local.ps1` helper and `src/main/resources/application-local.yaml` configured with your PostgreSQL credentials, run this from PowerShell:
+
+```powershell
+.\run-local.local.ps1
+```
+
+The helper supplies the local Spring profile and JWT secret, then invokes the Maven wrapper with the Windows `local-run` Maven profile:
+
+```powershell
+.\mvnw.cmd -Plocal-run clean verify exec:exec@frontend-dev spring-boot:run
+```
+
+Maven installs its own Node/npm under `target/frontend-tools`, restores frontend dependencies, runs frontend lint/build and all backend tests, then runs Vite and the API in the same terminal. No system Node/npm or extra terminal is needed.
+
+Open http://localhost:5173 after both servers report ready. Ctrl+C stops both. Ports 5001 and 5173 must be free.
+
+The configured PostgreSQL database must be reachable; neither Maven nor the helper provisions it. There is no frontend unit-test script, so frontend checks are lint and build. The Maven profile includes the main application configuration for tests, avoiding the minimal test configuration hiding required settings.
+
+Additional launcher commands:
+
+```powershell
+.\run-local.local.ps1 -TestOnly       # Checks only; do not start servers
+.\run-local.local.ps1 -MavenGoal test # Backend tests only
+```
+
+The launcher activates the local Spring profile and generates a temporary JWT secret if none is provided. Use a persistent `JWT_SECRET` environment variable to keep login tokens valid across restarts.
+
+Keep the launcher and local database profile untracked; neither should contain committed credentials.
 
 ## Application features and API
 
@@ -86,7 +123,19 @@ From the repository root:
 ./mvnw test
 ```
 
-On Windows, replace `./mvnw` with `.\mvnw.cmd`. The integration tests use PostgreSQL; the default Spring configuration connects to `localhost:5432/csci602`, while the `ghci` profile uses `localhost:5433/testdb` (username/password `admin`/`admin`). Set `SPRING_PROFILES_ACTIVE=ghci` when running the full test suite against that profile's database. A database-independent activity HTTP contract test can be run with `./mvnw -Dtest=UserActivityEndpointsUnitTest test`. JaCoCo writes its report to `target/site/jacoco/index.html`.
+On Windows, replace `./mvnw` with `.\mvnw.cmd`.
+
+The integration tests use PostgreSQL; the default Spring configuration connects to `localhost:5432/csci602`, while the `ghci` profile uses `localhost:5433/testdb` (username/password `admin`/`admin`).
+
+Set `SPRING_PROFILES_ACTIVE=ghci` when running the full test suite against that profile's database.
+
+A database-independent activity HTTP contract test can be run with:
+
+```sh
+./mvnw -Dtest=UserActivityEndpointsUnitTest test
+```
+
+JaCoCo writes its report to `target/site/jacoco/index.html`.
 
 Frontend checks:
 
@@ -109,4 +158,6 @@ pom.xml                          Maven build and backend dependencies
 
 ## Deployment
 
-`render.yaml` describes the Render services for the Spring Boot API, static frontend, and PostgreSQL database. Configure a strong `JWT_SECRET` for the API service in the deployment environment. For deployment and hosting configuration, see the [Render documentation](https://render.com/docs).
+`render.yaml` describes the Render services for the Spring Boot API, static frontend, and PostgreSQL database. Configure a strong `JWT_SECRET` for the API service in the deployment environment.
+
+For deployment and hosting configuration, see the [Render documentation](https://render.com/docs).
