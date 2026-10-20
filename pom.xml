@@ -19,7 +19,7 @@
     <properties>
         <java.version>25</java.version>
         <spring.doc.version>3.1.0</spring.doc.version>
-        <apache.commons.lang3.version>3.20.0</apache.commons.lang3.version>
+        <apache.commons.lang3.version>3.21.0</apache.commons.lang3.version>
         <commons.io.version>2.22.0</commons.io.version>
         <lombok.version>1.18.46</lombok.version>
         <flyway.version>13.3.0</flyway.version>
