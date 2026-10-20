@@ -94,6 +94,44 @@ npm run dev
 
 The React dev server starts on [http://localhost:5173](http://localhost:5173).
 
+### Windows Local Launcher
+
+If you have the ignored `run-local.local.ps1` helper and
+`src/main/resources/application-local.yaml` configured with your PostgreSQL
+credentials, run this from PowerShell:
+
+```powershell
+.\run-local.local.ps1
+```
+
+The helper supplies the local Spring profile and JWT secret, then invokes the
+Maven wrapper with the Windows `local-run` Maven profile:
+
+```powershell
+.\mvnw.cmd -Plocal-run clean verify exec:exec@frontend-dev spring-boot:run
+```
+
+Maven installs its own Node/npm under `target/frontend-tools`, restores frontend
+dependencies, runs frontend lint/build and all backend tests, then runs Vite and
+the API in the same terminal. No system Node/npm or extra terminal is needed.
+Open http://localhost:5173 after both servers report ready. Ctrl+C stops both.
+Ports 5001 and 5173 must be free.
+
+The configured PostgreSQL database must be reachable; neither Maven nor the
+helper provisions it. There is no frontend unit-test script, so frontend checks
+are lint and build. The Maven profile includes the main application configuration
+for tests, avoiding the minimal test configuration hiding required settings.
+
+```powershell
+.\run-local.local.ps1 -TestOnly   # Checks only; do not start servers
+.\run-local.local.ps1 -MavenGoal test # Backend tests only
+```
+
+The launcher activates the local Spring profile and generates a temporary JWT
+secret if none is provided. Use a persistent `JWT_SECRET` environment variable
+to keep login tokens valid across restarts. Keep the launcher and local database
+profile untracked; neither should contain committed credentials.
+
 ## Project Structure
 
 ```
