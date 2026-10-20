@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import edu.citadel.main.RestApiApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
 import java.net.URI;
@@ -48,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(
         classes = RestApiApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(locations = "classpath:jwt-test.properties")
 public class AuthEndpointsTest {
 
     private static final String PASSWORD = "correct-horse-battery";

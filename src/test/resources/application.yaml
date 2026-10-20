@@ -1,4 +1,0 @@
-security:
-  jwt:
-    # Test-only signing key. This is public and must never be used outside tests.
-    secret: "test-only-not-a-real-secret-0123456789abcdef"

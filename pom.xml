@@ -207,4 +207,84 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>local-run</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <version>1.15.1</version>
+                        <configuration>
+                            <workingDirectory>frontend</workingDirectory>
+                            <installDirectory>target/frontend-tools</installDirectory>
+                        </configuration>
+                        <executions>
+                            <!-- Boot's run goal repeats through test-compile; keep frontend work after that. -->
+                            <execution>
+                                <id>install-node</id>
+                                <phase>verify</phase>
+                                <goals><goal>install-node-and-npm</goal></goals>
+                                <configuration>
+                                    <nodeVersion>v22.17.1</nodeVersion>
+                                    <npmVersion>10.9.2</npmVersion>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>npm-ci</id>
+                                <phase>verify</phase>
+                                <goals><goal>npm</goal></goals>
+                                <configuration><arguments>ci</arguments></configuration>
+                            </execution>
+                            <execution>
+                                <id>frontend-lint</id>
+                                <phase>verify</phase>
+                                <goals><goal>npm</goal></goals>
+                                <configuration><arguments>run lint</arguments></configuration>
+                            </execution>
+                            <execution>
+                                <id>frontend-build</id>
+                                <phase>verify</phase>
+                                <goals><goal>npm</goal></goals>
+                                <configuration><arguments>run build</arguments></configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <spring.config.additional-location>optional:file:./src/main/resources/</spring.config.additional-location>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.3</version>
+                        <executions>
+                            <execution>
+                                <id>frontend-dev</id>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>${project.basedir}/target/frontend-tools/node/node.exe</executable>
+                                    <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                                    <arguments>
+                                        <argument>node_modules/vite/bin/vite.js</argument>
+                                        <argument>--port</argument>
+                                        <argument>5173</argument>
+                                        <argument>--strictPort</argument>
+                                    </arguments>
+                                    <async>true</async>
+                                    <asyncDestroyOnShutdown>true</asyncDestroyOnShutdown>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

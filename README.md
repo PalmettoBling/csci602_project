@@ -1,174 +1,165 @@
-# CSCI 602 — Foundations of Software Engineering
 
-[![Java CI](https://github.com/CitadelCS/csci-602/actions/workflows/maven.yml/badge.svg)](https://github.com/CitadelCS/csci-602/actions/workflows/maven.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# CSCI 602 Semester Project
 
-Template repository for CSCI 602 semester projects at The Citadel.
+A fitness-activity tracker with a Spring Boot REST API and a React web client. Users can register and log in, then view their activity history.
 
-## Tech Stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Java 25, Spring Boot 4.1 |
-| Frontend | React (Vite) |
-| Database | PostgreSQL (Flyway migrations) |
-| Testing | JUnit 5, Cucumber (BDD), JaCoCo (coverage) |
-| CI/CD | GitHub Actions |
-| Deployment | Render (Static Site + Web Service + PostgreSQL) |
-| API Docs | SpringDoc OpenAPI 3 (Swagger UI) |
+| Frontend | React 19, TypeScript, Vite 8 |
+| Database | PostgreSQL, with schema migrations managed by Flyway |
+| Authentication | Stateless JWT bearer tokens |
+| API documentation | SpringDoc OpenAPI / Swagger UI |
+| Tests | JUnit 5, Cucumber, JaCoCo |
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- Java 25
+- PostgreSQL
+- Node.js 20.19+ or 22.12+ and npm (for manual frontend startup)
 
-- **Java 25** — Install Amazon Corretto 25
-  - macOS: `brew install --cask corretto@25`
-  - Windows: Download the `.msi` installer from [Amazon Corretto 25](https://docs.aws.amazon.com/corretto/latest/corretto-25-ug/downloads-list.html)
-- **PostgreSQL** — You will be given credentials to a cloud-hosted database
-- **Node.js 20+** — Required for the React frontend (`brew install node` or [nodejs.org](https://nodejs.org/))
-- **IntelliJ IDEA** — Recommended IDE ([free student license](https://www.jetbrains.com/community/education/#students))
+The Maven wrapper (`mvnw` / `mvnw.cmd`) downloads and uses the Maven version configured for this project; a separate Maven installation is not required.
 
-### 1. Create Your Repository
+## Run locally
 
-1. Go to the template repository: [CitadelCS/csci-602](https://github.com/CitadelCS/csci-602)
-2. Click the green **"Use this template"** button → **"Create a new repository"**
-3. Set the **Owner** to your personal GitHub account
-4. Name the repository `csci-602` (or any name you prefer)
-5. Set visibility to **Private**
-6. Click **"Create repository"**
-7. Go to **Settings → Collaborators** and add `jtravan3` as a collaborator
+### 1. Start PostgreSQL
 
-### 2. Clone and Build
+The backend's local defaults expect a database named `csci602` on `localhost:5432`, with username and password `postgres`. Create that database and use those credentials, or set `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` to match your PostgreSQL setup. Flyway applies the database migrations automatically when the backend starts.
 
-```bash
-git clone https://github.com/YOUR-USERNAME/csci-602.git
-cd csci-602
+### 2. Configure the JWT signing key
+
+The backend requires `JWT_SECRET` to contain at least 32 bytes of random data. Do not commit the key or use a test-only key in a deployed environment.
+
+For a development shell, generate a key with OpenSSL:
+
+```sh
+export JWT_SECRET="$(openssl rand -hex 32)"
 ```
 
-> On Windows, replace `./mvnw` with `.\mvnw` in all commands below.
+In PowerShell:
 
-```bash
-./mvnw clean compile
+```powershell
+$env:JWT_SECRET = (openssl rand -hex 32)
 ```
 
-### 3. Configure Your Database
+These settings apply only to the current shell session.
 
-Update `src/main/resources/application.yaml` with the database credentials provided by your instructor:
+### 3. Start the backend
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://{host}:{port}/{database}
-    username: {username}
-    password: {password}
-```
+From the repository root:
 
-> **⚠️ Do not commit your database credentials to your repository.** Edit `application.yaml` locally but make sure you do not push these changes. Your credentials are unique to you.
-
-### 4. Run the API
-
-```bash
+```sh
 ./mvnw spring-boot:run
 ```
 
-The API starts on port 5001. Access Swagger UI at [http://localhost:5001/swagger-ui/index.html](http://localhost:5001/swagger-ui/index.html).
+On Windows PowerShell, run `.\mvnw.cmd spring-boot:run`.
 
-### 5. Run Tests
+The API listens on http://localhost:5001.
 
-```bash
-./mvnw test
-```
+Swagger UI is at http://localhost:5001/swagger-ui/index.html; health and application information are available at `/health` and `/info`.
 
-This runs JUnit unit tests and Cucumber integration tests. JaCoCo coverage reports are generated at `target/site/jacoco/index.html`.
+### 4. Start the frontend
 
-### 6. Frontend Setup (Iteration 0)
+In a second terminal:
 
-See `frontend/README.md` for instructions on scaffolding the React (Vite) frontend.
-
-```bash
+```sh
 cd frontend
-npm create vite@latest . -- --template react-ts
-npm install
+npm ci
 npm run dev
 ```
 
-The React dev server starts on [http://localhost:5173](http://localhost:5173).
+On Windows PowerShell, the same commands work. Open the Vite development URL printed in the terminal (normally http://localhost:5173). The Vite server proxies API requests to `http://localhost:5001`, so run the backend as well.
 
-## Project Structure
+For a frontend build served from a different host, set `VITE_API_BASE_URL` at build time to the API's base URL; the local development proxy is not included in production builds.
 
-```
-├── .github/workflows/     # GitHub Actions CI pipeline
-├── frontend/              # React (Vite) frontend (scaffold in Iteration 0)
-├── render.yaml            # Render deployment blueprint
-├── src/
-│   ├── main/
-│   │   ├── java/edu/citadel/
-│   │   │   ├── api/           # REST controllers
-│   │   │   ├── config/        # Spring configuration (SecurityConfig stub)
-│   │   │   ├── dal/           # Data access layer (repositories, models)
-│   │   │   └── main/          # Application entry point
-│   │   └── resources/
-│   │       ├── db/migration/  # Flyway SQL migrations
-│   │       └── application.yaml
-│   └── test/
-│       ├── java/edu/citadel/
-│       │   ├── bdd/           # Cucumber runner and step definitions
-│       │   └── hw1/           # HW1 unit tests
-│       └── resources/
-│           └── features/      # Cucumber .feature files (Gherkin)
-├── pom.xml                # Maven dependencies and build config
-└── README.md
+### 5. Windows Local Launcher (Alternative)
+
+If you have the ignored `run-local.local.ps1` helper and `src/main/resources/application-local.yaml` configured with your PostgreSQL credentials, run this from PowerShell:
+
+```powershell
+.\run-local.local.ps1
 ```
 
-## Stub Files
+The helper supplies the local Spring profile and JWT secret, then invokes the Maven wrapper with the Windows `local-run` Maven profile:
 
-The following files are included as starting points for specific assignments:
+```powershell
+.\mvnw.cmd -Plocal-run clean verify exec:exec@frontend-dev spring-boot:run
+```
 
-| File | Assignment |
-|---|---|
-| `src/main/java/edu/citadel/config/SecurityConfig.java` | Iteration 1 — JWT Authentication |
-| `src/test/java/edu/citadel/bdd/StepDefinitions.java` | Iteration 1 — Cucumber Integration Tests |
-| `frontend/README.md` | Iteration 0 — React Frontend Scaffold |
-| `render.yaml` | Iteration 2 — Render Deployment |
+Maven installs its own Node/npm under `target/frontend-tools`, restores frontend dependencies, runs frontend lint/build and all backend tests, then runs Vite and the API in the same terminal. No system Node/npm or extra terminal is needed.
 
-## Useful Commands
+Open http://localhost:5173 after both servers report ready. Ctrl+C stops both. Ports 5001 and 5173 must be free.
 
-| Command | Description |
-|---|---|
-| `./mvnw compile` | Compile the project |
-| `./mvnw test` | Run all tests (JUnit + Cucumber) + generate coverage |
-| `./mvnw spring-boot:run` | Start the API locally |
-| `./mvnw clean install` | Full build + test |
+The configured PostgreSQL database must be reachable; neither Maven nor the helper provisions it. There is no frontend unit-test script, so frontend checks are lint and build. The Maven profile includes the main application configuration for tests, avoiding the minimal test configuration hiding required settings.
 
-## Resources
+Additional launcher commands:
 
-- [Spring Boot — Getting Started](https://spring.io/guides/gs/spring-boot/)
-- [Spring Boot — Building REST Services](https://spring.io/guides/tutorials/rest)
-- [Cucumber — Spring Integration](https://www.baeldung.com/cucumber-spring-integration)
-- [React — Getting Started with Vite](https://vitejs.dev/guide/)
-- [Maven in 5 Minutes](https://maven.apache.org/guides/getting-started/maven-in-five-minutes.html)
-- [Render — Deployment Docs](https://render.com/docs)
-- [JaCoCo — Code Coverage](https://www.jacoco.org/jacoco/trunk/doc/)
+```powershell
+.\run-local.local.ps1 -TestOnly       # Checks only; do not start servers
+.\run-local.local.ps1 -MavenGoal test # Backend tests only
+```
 
-## Iteration 1: User Activity Queries
+The launcher activates the local Spring profile and generates a temporary JWT secret if none is provided. Use a persistent `JWT_SECRET` environment variable to keep login tokens valid across restarts.
 
-- `GET /users/{userId}/activities`: user history ordered by activity date descending, then ID descending.
-- `GET /users/{userId}/activities/search?type=Running&from=2026-10-01&to=2026-10-10`: optional case-insensitive exact type and inclusive date filters. Either date may be omitted; no filters returns the user's history. Type whitespace is trimmed.
-- `GET /users/{userId}/activity-types`: distinct recorded type strings for that user, alphabetically sorted. This is not a predefined exercise catalog.
+Keep the launcher and local database profile untracked; neither should contain committed credentials.
 
-Backlog mapping (numbers below are GitHub issue IDs):
+## Application features and API
 
-| Endpoint | Backlog story |
-|---|---|
-| `GET /users/{userId}/activities` | [View Activity History](https://github.com/PalmettoBling/csci602_project/issues/12) |
-| `GET /users/{userId}/activities/search` | [Filter Activity History](https://github.com/PalmettoBling/csci602_project/issues/17) |
-| `GET /users/{userId}/activity-types` | [Select Exercise Type](https://github.com/PalmettoBling/csci602_project/issues/9), supporting reuse of previously recorded types |
+- `POST /auth/register` creates an account; `POST /auth/login` returns a JWT.
+- `GET /users/{userId}/activities` lists a user's activities, newest first.
+- `GET /users/{userId}/activities/search` accepts optional `type`, `from`, and `to` filters. Dates use `yyyy-MM-dd` and are inclusive.
+- `GET /users/{userId}/activity-types` returns the activity types recorded for that user.
+- `/users/{userId}/**` requires a bearer JWT for that same user. Other protected API routes also require a valid bearer token.
 
-Successful requests return `200`, including `[]` when there are no matches. Unknown users return `404`. Nonpositive or malformed user IDs, blank or overlength types (100 characters maximum), invalid `yyyy-MM-dd` dates, and reversed date ranges return `400`.
+For example, `GET /users/42/activities/search?type=Running&from=2026-10-01&to=2026-10-10` filters user 42's history by activity type and date range.
 
-These queries use the existing PostgreSQL tables and JPA repositories. Every activity query is scoped to the selected user. Requests to `/users/{userId}/**` require a valid bearer JWT whose subject matches the path user ID.
+## Build and test
 
-`UserActivityEndpointsTest` exercises real PostgreSQL queries and HTTP behavior using MockMvc, with signed test JWTs so the production security filter remains enabled. Test resources provide a public, test-only signing key; it must never be used in deployed environments. Fixtures run in transactions and roll back. Run with `./mvnw test` using the configured database, or `./mvnw test -Dspring.profiles.active=ghci` against the CI PostgreSQL service.
+From the repository root:
+
+```sh
+./mvnw clean compile
+./mvnw test
+```
+
+On Windows, replace `./mvnw` with `.\mvnw.cmd`.
+
+The integration tests use PostgreSQL; the default Spring configuration connects to `localhost:5432/csci602`, while the `ghci` profile uses `localhost:5433/testdb` (username/password `admin`/`admin`).
+
+Set `SPRING_PROFILES_ACTIVE=ghci` when running the full test suite against that profile's database.
+
+A database-independent activity HTTP contract test can be run with:
+
+```sh
+./mvnw -Dtest=UserActivityEndpointsUnitTest test
+```
+
+JaCoCo writes its report to `target/site/jacoco/index.html`.
+
+Frontend checks:
+
+```sh
+cd frontend
+npm run lint
+npm run build
+```
+
+## Project layout
+
+```text
+src/main/java/edu/citadel/       Spring Boot API, security, and persistence
+src/main/resources/db/migration/ Flyway SQL migrations
+src/test/                        JUnit tests and Cucumber feature tests
+frontend/                        React/Vite application
+render.yaml                      Render deployment blueprint
+pom.xml                          Maven build and backend dependencies
+```
+
+## Deployment
+
+`render.yaml` describes the Render services for the Spring Boot API, static frontend, and PostgreSQL database. Configure a strong `JWT_SECRET` for the API service in the deployment environment.
 
 For database-independent HTTP contract checks, run `./mvnw -Dtest=UserActivityEndpointsUnitTest test`. To run the JUnit integration tests without Cucumber discovery, use `./mvnw -Dsurefire.excludeJUnit5Engines=cucumber test`; PostgreSQL must be available at the datasource configured for the active profile.
 
@@ -282,3 +273,5 @@ These files prepare deployment; they do not create Render resources or establish
 a public URL by themselves. Record the actual deployed URLs in the scrum report
 after configuring Render. The retrospective, Project board, code review, scrum
 report, and peer evaluations remain team deliverables.
+
+For deployment and hosting configuration, see the [Render documentation](https://render.com/docs).
