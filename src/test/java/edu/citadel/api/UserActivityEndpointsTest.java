@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Uses real JPA queries and the configured PostgreSQL database; all fixture writes roll back. */
 @SpringBootTest(classes = RestApiApplication.class)
+@TestPropertySource(locations = "classpath:jwt-test.properties")
 @Transactional
 class UserActivityEndpointsTest {
     @Autowired ActivityRepository activities;
