@@ -9,9 +9,9 @@
 | Field | Details |
 |---|---|
 | Team name | CSCI 602 Semester Project (formal team name to confirm) |
-| Team members | To confirm with the team |
+| Team members | Merrick Moss, Jonathan Merritt, Evan Hack, Gregory Kaczorowski |
 | Scrum Master | Merrick Moss |
-| Product Owner | To confirm for this iteration |
+| Product Owner | Jonathan Merritt |
 | Iteration | 1 (identified by the Iteration 1 PR titles; confirm against the team schedule) |
 | Date | October 19, 2026 |
 | Reporting period | October 6–19, 2026 |
