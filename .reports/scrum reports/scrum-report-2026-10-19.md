@@ -10,7 +10,7 @@
 |---|---|
 | Team name | CSCI 602 Semester Project (formal team name to confirm) |
 | Team members | To confirm with the team |
-| Scrum Master | To confirm for this iteration |
+| Scrum Master | Merrick Moss |
 | Product Owner | To confirm for this iteration |
 | Iteration | 1 (identified by the Iteration 1 PR titles; confirm against the team schedule) |
 | Date | October 19, 2026 |
