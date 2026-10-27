@@ -114,6 +114,71 @@ Keep the launcher and local database profile untracked; neither should contain c
 
 For example, `GET /users/42/activities/search?type=Running&from=2026-10-01&to=2026-10-10` filters user 42's history by activity type and date range.
 
+### Activity CRUD
+
+`/users/{userId}/activities` is the **owner-scoped** route set: the `{userId}` in the
+path is the only thing that decides whose data is read or written, and it is checked
+against the token subject before the request reaches a controller. A request body
+cannot name an owner, so one user can never read or change another user's activities.
+
+The older `/activities/**` routes still accept any valid token regardless of who owns
+the row. They are kept for the clients already built against them and are being
+hardened on a separate follow-up branch; prefer the owner-scoped routes below for new
+work.
+
+| Method | Path | Body | Success | Errors |
+| --- | --- | --- | --- | --- |
+| `GET` | `/users/{userId}/activities` | — | `200` + array, newest first | `400` invalid `userId`, `401`, `403`, `404` unknown user |
+| `POST` | `/users/{userId}/activities` | activity | `201` + activity, `Location` header | `400` invalid body, `401`, `403`, `404` unknown user |
+| `PUT` | `/users/{userId}/activities/{activityId}` | activity | `200` + updated activity | `400` invalid body, `401`, `403`, `404` unknown activity |
+| `DELETE` | `/users/{userId}/activities/{activityId}` | — | `204`, empty body | `401`, `403`, `404` unknown activity |
+
+Request body for `POST` and `PUT`:
+
+| Field | Type | Required | Rules |
+| --- | --- | --- | --- |
+| `activityType` | string | yes | trimmed, 1–100 characters |
+| `durationMinutes` | integer | yes | 1–1440 |
+| `activityDate` | string | yes | `yyyy-MM-dd`, from `1900-01-01` up to and including today |
+
+There is no owner field. A `userId` or `user` sent in the body is ignored.
+
+```sh
+# Create
+curl -i -X POST http://localhost:5001/users/42/activities \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"activityType":"Running","durationMinutes":30,"activityDate":"2026-10-26"}'
+# HTTP/1.1 201
+# Location: /users/42/activities/7
+# {"id":7,"activityType":"Running","durationMinutes":30,"activityDate":"2026-10-26"}
+
+# Update
+curl -X PUT http://localhost:5001/users/42/activities/7 \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"activityType":"Hiking","durationMinutes":95,"activityDate":"2026-10-27"}'
+# {"id":7,"activityType":"Hiking","durationMinutes":95,"activityDate":"2026-10-27"}
+
+# Delete
+curl -i -X DELETE http://localhost:5001/users/42/activities/7 \
+  -H "Authorization: Bearer $TOKEN"
+# HTTP/1.1 204
+```
+
+`PUT` and `DELETE` answer `404 Activity not found` both for an id that does not exist
+and for one that belongs to somebody else — the response deliberately does not reveal
+which, so it cannot be used to discover another account's activity ids.
+
+Validation failures and malformed JSON return `400` in the shared error envelope:
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "The request body is missing required fields or contains invalid values.",
+  "fields": { "durationMinutes": "durationMinutes must be at least 1" }
+}
+```
+
 ## Build and test
 
 From the repository root:
