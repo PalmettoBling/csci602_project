@@ -1,6 +1,6 @@
 name: Java CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   # Label of the runner job
@@ -39,3 +39,19 @@ jobs:
         run: ./mvnw -B compile --file pom.xml -Dspring.profiles.active=ghci
       - name: Test with Maven
         run: ./mvnw -B test --file pom.xml -Dspring.profiles.active=ghci
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          if-no-files-found: warn
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build and lint frontend
+        working-directory: frontend
+        run: npm ci && npm run build && npm run lint
