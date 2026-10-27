@@ -1,19 +1,32 @@
 import { apiFetch } from './client'
+import type { Weather } from '../components/ActivityWeather'
 
 /**
  * An activity as the API returns it.
  *
- * <p>The write routes (POST and PUT /users/{userId}/activities) answer with
- * exactly these four fields. The read routes currently serialize the entity and
- * so also carry the owning user, which this app has no use for -- the endpoint
- * is already scoped to one user -- so it is deliberately not modelled here.
+ * <p>The read routes serialize the entity and so also carry the owning user,
+ * which this app has no use for -- the endpoint is already scoped to one user --
+ * so it is deliberately not modelled here.
  */
 export type Activity = {
   readonly id: number
   readonly activityType: string
   readonly durationMinutes: number
   readonly activityDate: string
+  /**
+   * The attached historical weather snapshot, or null when none is attached.
+   * Only the read routes report it: the write routes answer with the flat
+   * ActivityResponse, so createActivity and updateActivity below fill this in
+   * themselves rather than letting it arrive as undefined.
+   */
+  readonly weather: Weather | null
 }
+
+/**
+ * What POST and PUT actually answer with -- ActivityResponse, which carries the
+ * four editable fields and no weather snapshot.
+ */
+type ActivityWriteResponse = Omit<Activity, 'weather'>
 
 /** The body the write routes accept. There is no owner field: the path decides. */
 export type ActivityPayload = {
@@ -127,25 +140,47 @@ export function listActivities(userId: number): Promise<Activity[]> {
   return apiFetch<Activity[]>(`/users/${userId}/activities`)
 }
 
-export function createActivity(
+export async function createActivity(
   userId: number,
   payload: ActivityPayload,
 ): Promise<Activity> {
-  return apiFetch<Activity>(`/users/${userId}/activities`, {
+  const created = await apiFetch<ActivityWriteResponse>(`/users/${userId}/activities`, {
     method: 'POST',
     body: payload,
   })
+  // A brand new activity has nothing attached yet; weather is added afterwards
+  // through POST /users/{userId}/activities/{activityId}/weather.
+  return { ...created, weather: null }
 }
 
-export function updateActivity(
+/**
+ * Saves an edit. Takes the activity being edited rather than just its id,
+ * because the response does not report the weather snapshot and the caller
+ * needs a complete activity back.
+ */
+export async function updateActivity(
   userId: number,
-  activityId: number,
+  previous: Activity,
   payload: ActivityPayload,
 ): Promise<Activity> {
-  return apiFetch<Activity>(`/users/${userId}/activities/${activityId}`, {
-    method: 'PUT',
-    body: payload,
-  })
+  const updated = await apiFetch<ActivityWriteResponse>(
+    `/users/${userId}/activities/${previous.id}`,
+    { method: 'PUT', body: payload },
+  )
+
+  /*
+   * The server drops the weather snapshot whenever the activity date changes
+   * (Activity.setActivityDate), because a snapshot is tied to one date, time and
+   * coordinate pair. ActivityResponse does not say whether that happened, so the
+   * same rule is applied here instead of guessing -- otherwise an edit would
+   * either hide weather that is still attached or show weather the server has
+   * already discarded. Adding `weather` to ActivityResponse would remove the
+   * need for this mirror.
+   */
+  return {
+    ...updated,
+    weather: updated.activityDate === previous.activityDate ? previous.weather : null,
+  }
 }
 
 export function deleteActivity(userId: number, activityId: number): Promise<void> {

@@ -12,6 +12,7 @@ import {
 import type { Activity, ActivityPayload } from '../api/activities'
 import ActivityForm from '../components/ActivityForm'
 import { useSession } from '../auth/session'
+import ActivityWeather from '../components/ActivityWeather'
 
 type LoadState =
   | { readonly status: 'loading' }
@@ -116,7 +117,7 @@ export default function Activities() {
         applyToList((activities) => [created, ...activities])
         setAddFormGeneration((generation) => generation + 1)
       } else {
-        const updated = await updateActivity(userId, editing.id, payload)
+        const updated = await updateActivity(userId, editing, payload)
         applyToList((activities) =>
           activities.map((activity) => (activity.id === updated.id ? updated : activity)),
         )
@@ -231,6 +232,7 @@ export default function Activities() {
               <th>Date</th>
               <th>Activity</th>
               <th>Duration</th>
+              <th>Weather</th>
               <th>
                 <span className="visually-hidden">Actions</span>
               </th>
@@ -242,6 +244,24 @@ export default function Activities() {
                 <td>{activity.activityDate}</td>
                 <td>{activity.activityType}</td>
                 <td>{activity.durationMinutes} min</td>
+                <td>
+                  {/* Attaching weather needs the owner id the route is scoped to. */}
+                  {userId !== undefined && (
+                    <ActivityWeather
+                      userId={userId}
+                      activityId={activity.id}
+                      activityDate={activity.activityDate}
+                      weather={activity.weather}
+                      onSaved={(weather) =>
+                        applyToList((activities) =>
+                          activities.map((item) =>
+                            item.id === activity.id ? { ...item, weather } : item,
+                          ),
+                        )
+                      }
+                    />
+                  )}
+                </td>
                 <td>
                   {confirmingDeleteId === activity.id ? (
                     <div className="row-actions">

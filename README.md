@@ -1,3 +1,4 @@
+
 # CSCI 602 Semester Project
 
 A fitness-activity tracker with a Spring Boot REST API and a React web client. Users can register and log in, then view their activity history.
@@ -224,5 +225,118 @@ pom.xml                          Maven build and backend dependencies
 ## Deployment
 
 `render.yaml` describes the Render services for the Spring Boot API, static frontend, and PostgreSQL database. Configure a strong `JWT_SECRET` for the API service in the deployment environment.
+
+For database-independent HTTP contract checks, run `./mvnw -Dtest=UserActivityEndpointsUnitTest test`. To run the JUnit integration tests without Cucumber discovery, use `./mvnw -Dsurefire.excludeJUnit5Engines=cucumber test`; PostgreSQL must be available at the datasource configured for the active profile.
+
+## Iteration 2: Historical Activity Weather
+
+Completed activities can be associated with **hourly historical estimates** from
+[Open-Meteo](https://open-meteo.com/en/docs/historical-weather-api). These are
+gridded reanalysis estimates, not exact minute-by-minute on-site observations.
+No provider API key is required for the non-commercial educational use described
+by this project; review the provider's terms before commercial deployment.
+
+On **Your Activities**, choose **Attach historical weather**, then enter the
+activity's local time, the UTC offset in effect at that location/date (including
+daylight-saving time), latitude, and longitude. The browser does not call the
+weather provider or request geolocation permission. Existing date-only activities
+remain supported and display "No weather attached" until details are supplied.
+
+### API contract
+
+`POST /users/{userId}/activities/{activityId}/weather` requires a bearer JWT for
+the path's user and an activity owned by that user:
+
+```json
+{
+  "latitude": 32.78,
+  "longitude": -79.93,
+  "occurredAt": "2026-10-01T14:35:00-04:00"
+}
+```
+
+The local date must equal the saved activity date. Future timestamps and dates
+before the archive begins in 1940 are rejected. The backend converts the timestamp
+to UTC and selects the hourly sample containing that instant (18:00 UTC in this
+example). Explicit Celsius, millimeter, and km/h units are used.
+
+A successful `200` response contains coordinates, `localTime`, `utcOffset`,
+`sampledAt` (UTC), `temperatureC`, `precipitationMm`, `windSpeedKmh`,
+`weatherCode` (WMO), and `fetchedAt` (UTC). Flyway migration V5 adds a nullable
+embedded snapshot to the activity row. Activity history and existing activity
+responses include that snapshot as `weather`; rendering history does not make
+another provider call. Repeating the same attachment reuses the stored result.
+Changing the supplied time/location replaces it only after a successful lookup.
+Changing the activity date through the update endpoint clears stale weather.
+
+Errors use the shared `{status, error, message, fields}` shape:
+
+| Status | Meaning |
+|---|---|
+| `400` | Missing/invalid coordinates, timestamp, IDs, or mismatched activity date |
+| `401` / `403` | Missing/invalid JWT or JWT belonging to another path user |
+| `404` | Activity missing or not owned by the path user |
+| `422` | No historical sample available; recent dates may take several days |
+| `502` | Provider failure, timeout, or malformed response |
+
+Missing measurements are never substituted with zero. Failed lookups preserve any
+previous snapshot. The HTTP client uses a 3-second connection timeout and
+8-second read timeout. `weather.archive-url` may override the provider origin
+(tests point it to an in-process HTTP fixture).
+
+### Tests and coverage
+
+JUnit tests cover provider HTTP behavior, UTC conversion/date boundaries, malformed
+and missing data, validation, caching, failures, and date-change invalidation.
+Cucumber scenarios exercise real PostgreSQL persistence, history serialization,
+cache reuse, JWT access rules, and invalidation without live provider requests.
+
+Run the complete suite against PostgreSQL:
+
+```powershell
+.\mvnw.cmd test "-Dspring.profiles.active=ghci"
+```
+
+The `ghci` profile expects `testdb` on localhost:5433 with test-only credentials
+`admin`/`admin`. To use a dedicated local database on a different port:
+
+```powershell
+.\mvnw.cmd test "-Dspring.profiles.active=ghci" "-Dspring.datasource.url=jdbc:postgresql://localhost:55433/testdb" "-Dspring.datasource.username=admin" "-Dspring.datasource.password=admin"
+```
+
+`mvnw test` generates `target/site/jacoco/index.html` and enforces **70% overall
+JaCoCo instruction coverage** (JaCoCo's bytecode-level statement coverage metric).
+No application packages are excluded from this threshold. GitHub Actions runs
+JUnit/Cucumber against its PostgreSQL service, uploads the HTML/XML/CSV coverage
+artifact, and builds/lints the frontend. A deliberately partial test run can skip
+the aggregate coverage gate with `-Djacoco.skip=true`.
+
+### Render deployment
+
+The Blueprint defines a Docker-based Spring Boot Web Service, a Vite Static Site,
+and PostgreSQL, with both services auto-deploying from **main**. Render does not
+provide a native Java runtime; `Dockerfile` builds and runs Java 25. Local app
+development does not require Docker when PostgreSQL is otherwise available.
+
+1. In Render, create a Blueprint from this GitHub repository and review the
+   resources and pricing. The free PostgreSQL plan has lifecycle/usage limits;
+   use a suitable paid plan if long-term persistence is needed.
+2. Supply `FRONTEND_ORIGIN` on the backend (the actual Static Site HTTPS origin,
+   no trailing slash) and `VITE_API_BASE_URL` on the frontend (the actual Web
+   Service HTTPS origin, no trailing slash). Update them if Render assigns names
+   with suffixes or a custom domain is used, then redeploy both services.
+3. The Blueprint generates `JWT_SECRET` and injects database host, port, database,
+   username, and password. The `render` Spring profile constructs a JDBC URL
+   instead of using Render's non-JDBC connection URI and binds to Render's `PORT`.
+   Do not enable the test/ghci profiles in production or replace the generated
+   JWT secret with the public test keys.
+4. Check `/health`, register/login through the public frontend, and attach weather
+   to an older completed activity. Reload history to confirm persistence. Use a
+   reviewed pull request into main to trigger subsequent automatic deployments.
+
+These files prepare deployment; they do not create Render resources or establish
+a public URL by themselves. Record the actual deployed URLs in the scrum report
+after configuring Render. The retrospective, Project board, code review, scrum
+report, and peer evaluations remain team deliverables.
 
 For deployment and hosting configuration, see the [Render documentation](https://render.com/docs).

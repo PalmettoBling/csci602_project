@@ -24,6 +24,9 @@ public class Activity {
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
 
+    @Embedded
+    private ActivityWeather weather;
+
     public Activity() {
     }
 
@@ -68,6 +71,17 @@ public class Activity {
     }
 
     public void setActivityDate(LocalDate activityDate) {
+        if (!java.util.Objects.equals(this.activityDate, activityDate)) {
+            weather = null;
+        }
         this.activityDate = activityDate;
+    }
+
+    public ActivityWeather getWeather() {
+        return weather;
+    }
+
+    public void setWeather(ActivityWeather weather) {
+        this.weather = weather;
     }
 }
