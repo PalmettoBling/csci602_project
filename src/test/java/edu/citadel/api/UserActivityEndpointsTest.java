@@ -34,7 +34,6 @@ class UserActivityEndpointsTest {
     @Autowired ActivityRepository activities;
     @Autowired UserRepository users;
     @Autowired VerificationRepository verification;
-    @Autowired AccountRepository accounts;
     @Autowired JwtEncoder jwtEncoder;
     @Autowired JwtProperties jwtProperties;
     @Autowired FilterChainProxy springSecurityFilterChain;
@@ -143,35 +142,21 @@ class UserActivityEndpointsTest {
         }
     }
 
+    /**
+     * The public status routes still answer unauthenticated.
+     *
+     * <p>This test used to also exercise POST/GET/PUT/DELETE on the unscoped
+     * /activities routes plus GET and POST /users, asserting they "still work".
+     * They did work -- for anybody's rows, which is why they have been removed.
+     * The equivalent owner-scoped coverage lives in
+     * {@link UserActivityWriteEndpointsTest}, and {@link RetiredRouteTest} now
+     * asserts the removed paths answer 401 anonymous and 404 authenticated.
+     */
     @Test
-    void existingCrudAndVerificationStillWork() throws Exception {
-        String body = "{\"userId\":" + user.getId() + ",\"activityType\":\"Walking\",\"durationMinutes\":15,\"activityDate\":\"2026-10-03\"}";
-        mvc.perform(asUser(post("/activities").contentType("application/json").content(body), user.getId().toString()))
-                .andExpect(status().isCreated());
-        Activity created = activities.findByUserIdOrderByActivityDateDescIdDesc(user.getId()).stream()
-                .filter(a -> a.getActivityType().equals("Walking")).findFirst().orElseThrow();
-        mvc.perform(asUser(get("/activities/" + created.getId()), user.getId().toString())).andExpect(status().isOk());
-        mvc.perform(asUser(get("/activities"), user.getId().toString())).andExpect(status().isOk());
-        mvc.perform(asUser(put("/activities/" + created.getId()).contentType("application/json")
-                        .content(body.replace("Walking", "Hiking")), user.getId().toString()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.activityType").value("Hiking"));
-        mvc.perform(asUser(delete("/activities/" + created.getId()), user.getId().toString()))
-                .andExpect(status().isNoContent());
-        mvc.perform(asUser(get("/activities/" + created.getId()), user.getId().toString()))
-                .andExpect(status().isNotFound());
-        mvc.perform(asUser(post("/users").contentType("application/json")
-                        .content("{\"name\":\"Created user\",\"email\":\"" + UUID.randomUUID() + "@example.com\"}"),
-                        user.getId().toString())).andExpect(status().isCreated());
-        mvc.perform(asUser(get("/users"), user.getId().toString())).andExpect(status().isOk());
+    void publicStatusRoutesStillWork() throws Exception {
         mvc.perform(get("/info")).andExpect(status().isOk());
         mvc.perform(get("/verification")).andExpect(status().isOk())
                 .andExpect(content().string(verification.findAll().stream().findFirst().map(Verification::getCode).orElse("")));
         mvc.perform(get("/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ok"));
-        String unique = UUID.randomUUID().toString();
-        mvc.perform(post("/account").contentType("application/json").content("{\"username\":\"" + unique + "\",\"password\":\"testpass\",\"email\":\"" + unique + "@example.com\"}"))
-                .andExpect(status().isCreated());
-        Account account = accounts.findAccountByUsername(unique);
-        mvc.perform(get("/account/" + account.getUser_id())).andExpect(status().isOk());
-        mvc.perform(get("/account/username/" + unique)).andExpect(status().isOk());
     }
 }

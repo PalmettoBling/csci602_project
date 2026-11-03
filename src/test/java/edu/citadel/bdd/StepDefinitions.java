@@ -6,8 +6,6 @@ import edu.citadel.dal.model.Activity;
 import edu.citadel.dal.model.User;
 import edu.citadel.dal.ActivityRepository;
 import edu.citadel.dal.UserRepository;
-import edu.citadel.dal.AccountRepository;
-import edu.citadel.dal.model.Account;
 import io.cucumber.java.After;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
@@ -55,9 +53,6 @@ public class StepDefinitions {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private AccountRepository accountRepository;
-
-    @Autowired
     private JwtEncoder jwtEncoder;
 
     @Autowired
@@ -65,8 +60,17 @@ public class StepDefinitions {
 
     private Long userId;
     private MvcResult result;
-    private String accountRequestBody;
-    private Long createdAccountId;
+
+    /** Body for the generic "I send a POST request to {string}" step. */
+    private String requestBody;
+
+    /** Credentials this scenario registered through /auth/register. */
+    private String registeredUsername;
+    private String registeredPassword;
+    private String registeredEmail;
+
+    /** Bearer token from the most recent successful login, if any. */
+    private String bearerToken;
 
     /** The activity most recently created through the API, for the edit and delete steps. */
     private Long createdActivityId;
@@ -75,7 +79,13 @@ public class StepDefinitions {
 
     private final List<Activity> testActivities = new ArrayList<>();
     private final List<User> testUsers = new ArrayList<>();
-    private final List<String> testAccountUsernames = new ArrayList<>();
+
+    /**
+     * Ids of users created through /auth/register, so cleanUp can delete those
+     * exact rows. The database is shared between teammates, so nothing here is
+     * ever deleted by username pattern or prefix.
+     */
+    private final List<Long> registeredUserIds = new ArrayList<>();
     /**
      * Ids of activities created through the API rather than through the
      * repository, so cleanUp can remove those exact rows. The database is shared
@@ -221,15 +231,43 @@ public class StepDefinitions {
         assertTrue(types.contains(second));
     }
 
-    @Given("I have an account request with username {string}, password {string}, and email {string}")
-    public void createAccountRequest(String username, String password, String email) throws Exception {
-        Map<String, String> account = new HashMap<>();
-        account.put("username", username);
-        account.put("password", password);
-        account.put("email", email);
+    // ------------------------------------------------------------------ auth
 
-        accountRequestBody = objectMapper.writeValueAsString(account);
-        testAccountUsernames.add(username);
+    /**
+     * Builds a registration body for a brand new user.
+     *
+     * <p>The username and email are randomised rather than fixed, because the
+     * database is shared: a hardcoded "testuser" would collide with a teammate's
+     * row and turn a 201 into a 409 depending on who ran the suite last.
+     */
+    @Given("I have a registration request for a new user")
+    public void createRegistrationRequest() throws Exception {
+        String unique = UUID.randomUUID().toString().substring(0, 12);
+
+        registeredUsername = "bdd-" + unique;
+        registeredPassword = "correct-horse-battery-" + unique;
+        registeredEmail = "bdd-" + unique + "@example.test";
+
+        Map<String, String> registration = new HashMap<>();
+        registration.put("name", "BDD Test User");
+        registration.put("username", registeredUsername);
+        registration.put("password", registeredPassword);
+        registration.put("email", registeredEmail);
+
+        requestBody = objectMapper.writeValueAsString(registration);
+    }
+
+    /** Same as above but with the password omitted, to exercise the 400 path. */
+    @Given("I have a registration request with no password")
+    public void createRegistrationRequestWithoutPassword() throws Exception {
+        createRegistrationRequest();
+
+        Map<String, String> registration = new HashMap<>();
+        registration.put("name", "BDD Test User");
+        registration.put("username", registeredUsername);
+        registration.put("email", registeredEmail);
+
+        requestBody = objectMapper.writeValueAsString(registration);
     }
 
     @When("I send a POST request to {string}")
@@ -237,21 +275,63 @@ public class StepDefinitions {
         result = mockMvc().perform(
                 post(endpoint)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(accountRequestBody)
+                        .content(requestBody)
         ).andReturn();
 
-        if (result.getResponse().getStatus() == 201) {
-            JsonNode body = objectMapper.readTree(
-                    result.getResponse().getContentAsString()
-            );
+        rememberRegisteredUser();
+    }
 
-            if (body.has("id")) {
-                createdAccountId = body.get("id").asLong();
-            }
+    @When("I send the same registration request again")
+    public void sendSameRegistrationAgain() throws Exception {
+        sendPostRequest("/auth/register");
+    }
 
-            if (body.has("username")) {
-                testAccountUsernames.add(body.get("username").asText());
-            }
+    @When("I log in with the registered credentials")
+    public void loginWithRegisteredCredentials() throws Exception {
+        login(registeredUsername, registeredPassword);
+    }
+
+    @When("I log in with the wrong password")
+    public void loginWithWrongPassword() throws Exception {
+        login(registeredUsername, "definitely-not-the-password");
+    }
+
+    @When("I log in as a user that does not exist")
+    public void loginAsUnknownUser() throws Exception {
+        login("no-such-user-" + UUID.randomUUID(), registeredPassword);
+    }
+
+    private void login(String username, String password) throws Exception {
+        Map<String, String> credentials = new HashMap<>();
+        credentials.put("username", username);
+        credentials.put("password", password);
+
+        result = mockMvc().perform(
+                post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(credentials))
+        ).andReturn();
+
+        if (result.getResponse().getStatus() == 200) {
+            bearerToken = objectMapper
+                    .readTree(result.getResponse().getContentAsString())
+                    .get("token").asText();
+        }
+    }
+
+    /**
+     * Records the id of a user that /auth/register just created, so cleanUp can
+     * remove that exact row.
+     */
+    private void rememberRegisteredUser() throws Exception {
+        if (result.getResponse().getStatus() != 201) {
+            return;
+        }
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+
+        if (body.has("id")) {
+            registeredUserIds.add(body.get("id").asLong());
         }
     }
 
@@ -260,15 +340,105 @@ public class StepDefinitions {
         result = mockMvc().perform(get(endpoint)).andReturn();
     }
 
-    @When("I send a GET request to the created account's ID endpoint")
-    public void getCreatedAccountById() throws Exception {
-        Account account = accountRepository.findAccountByUsername("lookupuser");
-
-        assertNotNull(account, "The test account was not found.");
+    @When("I send an authenticated GET request to {string}")
+    public void sendAuthenticatedGetRequest(String endpoint) throws Exception {
+        assertNotNull(bearerToken, "no login has produced a token for this scenario");
 
         result = mockMvc().perform(
-                get("/account/" + account.getUser_id())
+                get(endpoint).header("Authorization", "Bearer " + bearerToken)
         ).andReturn();
+    }
+
+    @Then("the response body should contain the registered username")
+    public void bodyContainsRegisteredUsername() throws Exception {
+        checkResponseBody(registeredUsername);
+    }
+
+    @Then("the response body should contain the registered email")
+    public void bodyContainsRegisteredEmail() throws Exception {
+        checkResponseBody(registeredEmail);
+    }
+
+    @Then("the response body should contain a bearer token")
+    public void bodyContainsBearerToken() throws Exception {
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+
+        assertTrue(body.hasNonNull("token"), "the login response must carry a token");
+        assertEquals("Bearer", body.get("tokenType").asText());
+        // Three dot-separated base64url segments: a real signed JWT, not a stub.
+        assertEquals(3, body.get("token").asText().split("\\.").length,
+                "the token should be a signed JWT");
+    }
+
+    /**
+     * The BDD half of the no-secrets sweep.
+     *
+     * <p>Deliberately structural rather than a plain substring scan. A 400 from
+     * /auth/register legitimately reads
+     * {@code {"fields":{"password":"password is required"}}} -- that is a field
+     * name inside a validation message, not a disclosed credential, and a raw
+     * "body must not contain the word password" check would fail on it while
+     * telling us nothing about safety. So this asserts the three things that
+     * actually matter: no credential-bearing field anywhere outside the
+     * validation map, no BCrypt hash in any form, and no echo of the password
+     * this scenario actually submitted.
+     */
+    @Then("the response body should not expose any password or hash")
+    public void bodyExposesNoSecret() throws Exception {
+        String body = result.getResponse().getContentAsString();
+
+        for (String prefix : new String[]{"$2a$", "$2b$", "$2y$"}) {
+            assertFalse(body.contains(prefix),
+                    "response body must not contain a BCrypt hash: " + body);
+        }
+
+        if (registeredPassword != null) {
+            assertFalse(body.contains(registeredPassword),
+                    "response body must not echo the submitted password: " + body);
+        }
+
+        if (body.isBlank()) {
+            return;
+        }
+
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(body);
+        } catch (Exception notJson) {
+            // A non-JSON body (the plain-text /verification code) has no fields
+            // to inspect; the hash and echo checks above already covered it.
+            return;
+        }
+
+        assertNoCredentialFields(root, "$");
+    }
+
+    /**
+     * Fails if any field named like a credential carries a value, at any depth.
+     * The {@code fields} object of an ApiError is skipped: its keys are the names
+     * of the request fields that failed validation, and its values are messages
+     * written in this codebase.
+     */
+    private void assertNoCredentialFields(JsonNode node, String path) {
+        if (node.isObject()) {
+            node.fieldNames().forEachRemaining(name -> {
+                if (path.equals("$") && name.equals("fields")) {
+                    return;
+                }
+
+                String lower = name.toLowerCase();
+                assertFalse(
+                        lower.equals("password") || lower.equals("passwordhash")
+                                || lower.equals("hash") || lower.equals("secret"),
+                        "response must not carry a " + name + " field at " + path);
+
+                assertNoCredentialFields(node.get(name), path + "." + name);
+            });
+        } else if (node.isArray()) {
+            for (int i = 0; i < node.size(); i++) {
+                assertNoCredentialFields(node.get(i), path + "[" + i + "]");
+            }
+        }
     }
 
     @Then("the response status code should be {int}")
@@ -476,15 +646,17 @@ public class StepDefinitions {
         activityRepository.deleteAll(testActivities);
         userRepository.deleteAll(testUsers);
 
-        for (String username : testAccountUsernames) {
-            Account account = accountRepository.findAccountByUsername(username);
-
-            if (account != null) {
-                accountRepository.delete(account);
-            }
+        // Only the exact ids /auth/register handed back. Never by username
+        // pattern: the database is shared with teammates.
+        for (Long registeredUserId : registeredUserIds) {
+            userRepository.findById(registeredUserId).ifPresent(userRepository::delete);
         }
 
-        testAccountUsernames.clear();
+        registeredUserIds.clear();
+        registeredUsername = null;
+        registeredPassword = null;
+        registeredEmail = null;
+        bearerToken = null;
 
         testActivities.clear();
         testUsers.clear();

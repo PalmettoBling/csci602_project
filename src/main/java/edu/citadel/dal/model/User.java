@@ -29,9 +29,14 @@ public class User {
     /**
      * BCrypt hash of the user's password, or null for a row that predates V4.
      *
-     * {@code @JsonIgnore} is load-bearing: UserEndpoints serializes this entity
-     * directly, so without it GET /users would hand out every stored hash and
-     * POST /users could set one straight from a request body.
+     * <p>{@code @JsonIgnore} is kept as defence in depth. It originally stopped
+     * the since-removed {@code GET /users} from handing out every stored hash,
+     * and {@code POST /users} from setting one straight from a request body.
+     * No endpoint serializes this entity any more -- {@code /auth/**} answers
+     * with {@link edu.citadel.api.response.UserResponse} -- but the annotation
+     * stays so that a future controller returning a {@code User} cannot leak the
+     * hash by accident. {@code NoSecretDisclosureTest} asserts the outcome
+     * against the live routes rather than trusting this annotation alone.
      */
     @JsonIgnore
     @Column(name = "password_hash", length = 255)

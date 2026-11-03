@@ -111,7 +111,7 @@ Keep the launcher and local database profile untracked; neither should contain c
 - `GET /users/{userId}/activities` lists a user's activities, newest first.
 - `GET /users/{userId}/activities/search` accepts optional `type`, `from`, and `to` filters. Dates use `yyyy-MM-dd` and are inclusive.
 - `GET /users/{userId}/activity-types` returns the activity types recorded for that user.
-- `/users/{userId}/**` requires a bearer JWT for that same user. Other protected API routes also require a valid bearer token.
+- `/users/{userId}/**` requires a bearer JWT for that same user. Every other route except the public ones listed under [Security model](#security-model) requires a valid bearer token.
 
 For example, `GET /users/42/activities/search?type=Running&from=2026-10-01&to=2026-10-10` filters user 42's history by activity type and date range.
 
@@ -122,10 +122,8 @@ path is the only thing that decides whose data is read or written, and it is che
 against the token subject before the request reaches a controller. A request body
 cannot name an owner, so one user can never read or change another user's activities.
 
-The older `/activities/**` routes still accept any valid token regardless of who owns
-the row. They are kept for the clients already built against them and are being
-hardened on a separate follow-up branch; prefer the owner-scoped routes below for new
-work.
+These are the only activity routes. The unscoped `/activities/**` routes have been
+removed — see [Security model](#security-model).
 
 | Method | Path | Body | Success | Errors |
 | --- | --- | --- | --- | --- |
@@ -179,6 +177,85 @@ Validation failures and malformed JSON return `400` in the shared error envelope
   "fields": { "durationMinutes": "durationMinutes must be at least 1" }
 }
 ```
+
+## Security model
+
+The API is deployed publicly, so every route is either on a short public
+allowlist or requires a bearer JWT, and user data is reachable only through the
+owner's own path.
+
+**Public, no token.** `POST /auth/register`, `POST /auth/login`, `GET /health`,
+`GET /info`, `GET /verification`, the springdoc paths (development and CI only —
+see below), and Boot's internal `/error` forward. Everything else is deny by
+default: a new controller is protected unless somebody explicitly adds it to
+`PUBLIC_PATHS` in `SecurityConfig`.
+
+**Owner-scoped.** `/users/{userId}/**` is authorized by comparing `{userId}`
+against the token's subject claim, which is the user id. That happens in
+`AuthorizationFilter`, before the dispatcher, so it applies to every present and
+future route under that prefix:
+
+| Situation | Status | Where it comes from |
+| --- | --- | --- |
+| No token, or a malformed, expired or forged one | `401` | filter chain, JSON body |
+| Valid token, but `{userId}` is somebody else | `403` | filter chain, JSON body |
+| Own path, but the activity id belongs to another user | `404` | repository lookup by id **and** owner |
+| Own path, activity id does not exist | `404` | identical body to the line above |
+
+The last two are deliberately indistinguishable: a different answer would let a
+caller discover which activity ids exist on other accounts. Request bodies never
+name an owner, so a `userId` or `user` field in a body is ignored rather than
+honoured, and an edit can never reassign a row to a different account.
+
+**Credentials.** Passwords are hashed with BCrypt at registration and are never
+returned by any route. `User.passwordHash` carries `@JsonIgnore`, no endpoint
+serializes the entity where a hash could escape, and `NoSecretDisclosureTest`
+drives every surviving route asserting no response body contains a password
+field, a hash, or the submitted password. A user row with no hash — one created
+before the `V4` migration — cannot be logged into; a null hash is never treated
+as a match. Failed logins answer identically whether the username is unknown or
+the password is wrong, and both cost the same BCrypt work, so the endpoint cannot
+be used to enumerate accounts.
+
+**Errors.** `server.error.include-message`, `include-stacktrace`,
+`include-exception` and `include-binding-errors` are all pinned to `never`/`false`
+in `application.yaml`, and again in `application-render.yaml`. Error bodies carry
+only messages written in this codebase; the `fields` map of a `400` names the
+request fields that failed validation and never their values.
+
+**API documentation.** springdoc is enabled for local development and CI but
+disabled in the `render` profile (`springdoc.api-docs.enabled: false`,
+`springdoc.swagger-ui.enabled: false`), so the public deployment does not publish
+a map of its own routes.
+
+**CORS.** One source of truth: `security.cors.allowed-origins`, which the
+`render` profile fills from the `FRONTEND_ORIGIN` environment variable. No route
+declares its own `@CrossOrigin`. Credentials are not allowed — the browser client
+sends a bearer token in a header, so no cookie crosses the origin boundary.
+
+**Actuator** is not web-exposed: `management.endpoints.enabled-by-default` is
+`false` and the exposure list does not name `health`. The deployment liveness
+probe uses the application's own `GET /health`.
+
+### Removed routes
+
+These existed in earlier iterations and have been deleted. All of them now answer
+`401` to an anonymous caller and `404` to an authenticated one.
+
+| Route | Why it was removed |
+| --- | --- |
+| `POST /account` | Stored the password in plaintext and returned it in the response. |
+| `GET /account/{id}`, `GET /account/username/{username}` | Public — any anonymous caller could read any account's plaintext password by id or username. |
+| `GET /activities` | Served every activity of every user, including each owner's name and email, to any valid token. |
+| `GET`, `PUT`, `DELETE /activities/{id}` | No ownership check at all: any valid token could read, edit or delete any user's row. |
+| `POST /activities` | Took the owner from the request body, so any token could create rows owned by anyone. |
+| `GET /users` | Listed every registered user's name, username and email to any valid token. |
+| `POST /users` | Created arbitrary user rows from a raw entity body, with no owner concept. |
+
+`POST /auth/register` and `POST /auth/login` replace the `/account` routes;
+`/users/{userId}/activities` replaces the `/activities` routes. The `accounts`
+table from `V1` is left in place — no migration was changed — but nothing reads
+or writes it any more.
 
 ## Build and test
 

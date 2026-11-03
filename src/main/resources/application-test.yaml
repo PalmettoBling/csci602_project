@@ -31,4 +31,3 @@ spring:
 springdoc:
   packagesToScan: edu.citadel.api
   pathsToMatch: /v1, /**
-  show-actuator: true

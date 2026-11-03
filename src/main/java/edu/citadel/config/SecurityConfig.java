@@ -42,22 +42,31 @@ public class SecurityConfig {
      * <p>/auth/** is how a caller obtains a token in the first place.
      * /verification is called by the React home page before anyone logs in.
      * /health and /info return a fixed string and static info.app.* values, and
-     * health.feature asserts both answer unauthenticated.
-     * /account/** is asserted unauthenticated by account_creation.feature and
-     * account_retrieval.feature.
-     * The springdoc paths serve the API documentation UI.
+     * health.feature asserts both answer unauthenticated. /health is also the
+     * healthCheckPath in render.yaml.
+     * The springdoc paths serve the API documentation UI, and are disabled
+     * outright in the render profile (see application-render.yaml) so they are
+     * reachable in development and CI but not on the public deployment.
      * /error is Boot's internal error forward: the security filter also runs on
      * ERROR dispatches, so without it a genuine 500 raised inside an
      * authenticated handler would reach the client as a confusing 401.
+     *
+     * <p>Deliberately absent:
+     * <ul>
+     *   <li>/account/** -- those routes returned a plaintext password to any
+     *       anonymous caller and have been removed entirely. Registration and
+     *       login now live on /auth/**.</li>
+     *   <li>/actuator/health -- actuator is not web-exposed at all
+     *       (management.endpoints.enabled-by-default is false and the exposure
+     *       list does not name health), so the entry only ever permitted a 404.
+     *       The liveness probe uses /health instead.</li>
+     * </ul>
      */
     private static final String[] PUBLIC_PATHS = {
             "/auth/**",
             "/verification",
             "/health",
             "/info",
-            "/actuator/health",
-            "/actuator/health/**",
-            "/account/**",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",
@@ -102,20 +111,24 @@ public class SecurityConfig {
                         // User-scoped routes: the {userId} in the path must equal
                         // the token subject, which is the user id. Declared here
                         // rather than inside a controller so it covers every
-                        // current and future /users/{userId}/... route, including
-                        // the /users/{userId}/activities endpoint arriving on
-                        // feature/exercise-endpoints, with no further change.
+                        // current and future /users/{userId}/... route with no
+                        // further change.
                         //
                         // AuthorizationFilter runs ahead of DispatcherServlet, so a
                         // mismatched id is rejected with 403 whether or not a
-                        // handler for that path exists yet.
+                        // handler for that path exists yet. That is also why the
+                        // removed /users and /activities routes cannot come back
+                        // accidentally: anything outside this pattern falls through
+                        // to the deny-by-default rule below.
                         .requestMatchers("/users/{userId}/**")
                         .access(new WebExpressionAuthorizationManager(
                                 "#userId == authentication.name"))
-                        // Everything else -- /users, /activities/** and anything
-                        // added later -- needs a valid token. Deny by default, so a
-                        // new controller is protected unless somebody opts it out
-                        // in PUBLIC_PATHS above.
+                        // Everything else needs a valid token. Deny by default, so
+                        // a new controller is protected unless somebody opts it out
+                        // in PUBLIC_PATHS above. A request to a path with no handler
+                        // at all -- /users, /activities/{id}, /account/{id} -- is
+                        // answered 401 when anonymous and 404 once authenticated,
+                        // because authorization is decided before dispatch.
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.decoder(jwtDecoder))
