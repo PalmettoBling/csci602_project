@@ -201,7 +201,15 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <jvmArguments>-Xms2048m -Xmx4096m</jvmArguments>
+                    <!--
+                      Applies to `mvn spring-boot:run` only. The container does not
+                      use it: the Dockerfile runs `java -jar` with
+                      -XX:MaxRAMPercentage=75 so the heap tracks whatever Render
+                      actually allots. The previous -Xms2048m committed 2 GB of heap
+                      up front on every developer machine, and -Xmx4096m let a local
+                      run grow past what the free tier could ever provide.
+                    -->
+                    <jvmArguments>-Xmx1024m</jvmArguments>
                 </configuration>
             </plugin>
         </plugins>

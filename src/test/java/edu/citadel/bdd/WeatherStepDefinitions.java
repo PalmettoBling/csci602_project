@@ -112,10 +112,18 @@ public class WeatherStepDefinitions {
         assertNull(activities.findById(activity.getId()).orElseThrow().getWeather());
     }
 
+    /**
+     * Edits through the owner-scoped route. This used to call the unscoped
+     * PUT /activities/{id}, which has been removed: it accepted any activity id
+     * from any authenticated caller. The owner-scoped route resolves the row by
+     * id *and* owner, so this step now proves the date change invalidates the
+     * weather snapshot on a route that also enforces ownership.
+     */
     @When("the owner changes the activity date")
     public void changeDate() throws Exception {
-        mvc.perform(JwtTestSupport.asUser(put("/activities/" + activity.getId())
-                .contentType("application/json").content("""
+        mvc.perform(JwtTestSupport.asUser(
+                put("/users/" + user.getId() + "/activities/" + activity.getId())
+                        .contentType("application/json").content("""
                         {"activityType":"Running","durationMinutes":30,"activityDate":"2026-10-02"}
                         """), encoder, properties, user.getId().toString())).andExpect(status().isOk());
     }

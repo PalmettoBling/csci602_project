@@ -18,8 +18,9 @@ import java.time.LocalDate;
  * path, which SecurityConfig has already checked against the token subject, so a
  * body that carries a {@code userId} or a {@code user} object cannot influence
  * who the row belongs to -- Jackson ignores unknown properties and there is
- * nothing here for them to bind to. This is why the existing
- * {@link ActivityRequestBody}, which does take a userId, is not reused.
+ * nothing here for them to bind to. The retired {@code ActivityRequestBody} did
+ * carry a {@code userId}, which is exactly why the unscoped /activities routes
+ * built on it let one caller create rows owned by somebody else.
  *
  * <p>Bounds mirror the V3 columns so an oversized value is a 400 rather than a
  * database error, and keep obvious nonsense out of the table.

@@ -285,10 +285,18 @@ public class AuthEndpointsTest {
 
     // ------------------------------------------------------- token enforcement
 
+    /*
+     * These four probes used to target GET /activities purely because it was a
+     * convenient protected path. That route has been removed -- it served every
+     * user's rows to any valid token -- so they now probe the owner-scoped
+     * history route instead. The behaviour under test is unchanged: it is the
+     * filter chain's handling of a missing, malformed, forged or valid token.
+     */
+
     @Test
     @DisplayName("protected endpoint: no token returns 401 as JSON, not an HTML login page")
     void protectedEndpointRejectsMissingToken() throws Exception {
-        Response response = get("/activities", null);
+        Response response = get("/users/1/activities", null);
 
         assertEquals(401, response.status(), response.body());
         assertJsonBody(response);
@@ -302,7 +310,7 @@ public class AuthEndpointsTest {
     @Test
     @DisplayName("protected endpoint: a garbage token returns 401 as JSON")
     void protectedEndpointRejectsMalformedToken() {
-        Response response = get("/activities", "not.a.real.token");
+        Response response = get("/users/1/activities", "not.a.real.token");
 
         assertEquals(401, response.status(), response.body());
         assertJsonBody(response);
@@ -312,14 +320,14 @@ public class AuthEndpointsTest {
     @DisplayName("protected endpoint: a token signed with the wrong key returns 401")
     void protectedEndpointRejectsForgedSignature() {
         String username = uniqueUsername();
-        registerAndGetId(username);
+        long id = registerAndGetId(username);
         String token = login(username);
 
         // Keep the header and claims, corrupt only the signature.
         String[] parts = token.split("\\.");
         String forged = parts[0] + "." + parts[1] + "." + parts[2].substring(1) + "A";
 
-        assertEquals(401, get("/activities", forged).status(),
+        assertEquals(401, get("/users/" + id + "/activities", forged).status(),
                 "a token whose signature does not verify must be rejected");
     }
 
@@ -327,28 +335,63 @@ public class AuthEndpointsTest {
     @DisplayName("protected endpoint: a valid token returns 200")
     void protectedEndpointAcceptsValidToken() {
         String username = uniqueUsername();
-        registerAndGetId(username);
+        long id = registerAndGetId(username);
         String token = login(username);
 
-        Response response = get("/activities", token);
+        Response response = get("/users/" + id + "/activities", token);
 
         assertEquals(200, response.status(), response.body());
     }
 
+    /**
+     * Replaces an older test that asserted GET /users hid the hash. That route
+     * is gone -- it listed every registered user's name and email to any valid
+     * token -- so the guarantee is now asserted where user data actually comes
+     * back: the registration response, the login response, and the owner-scoped
+     * activity history.
+     */
     @Test
-    @DisplayName("GET /users with a valid token never discloses a password hash")
-    void userListingHidesHashes() {
+    @DisplayName("no surviving route that returns user data discloses a password or hash")
+    void survivingRoutesHideCredentials() {
         String username = uniqueUsername();
-        registerAndGetId(username);
+        long id = registerAndGetId(username);
+
+        Response registration = postJson("/auth/register", registrationBody(uniqueUsername()));
+        assertEquals(201, registration.status(), registration.body());
+        rememberFrom(registration);
+
+        Response loginResponse = postJson("/auth/login", loginBody(username, PASSWORD));
+        assertEquals(200, loginResponse.status(), loginResponse.body());
+
         String token = login(username);
+        Response history = get("/users/" + id + "/activities", token);
+        assertEquals(200, history.status(), history.body());
 
-        Response response = get("/users", token);
+        for (Response response : List.of(registration, loginResponse, history)) {
+            assertNoCredentialDisclosure(response);
+        }
+    }
 
-        assertEquals(200, response.status(), response.body());
-        assertFalse(response.body().contains("passwordHash"),
-                "GET /users must not expose the hash field");
-        assertFalse(response.body().contains("$2a$"), "GET /users must not expose a BCrypt hash");
-        assertFalse(response.body().contains("$2b$"), "GET /users must not expose a BCrypt hash");
+    /**
+     * The no-secrets sweep for this suite. These bodies carry no validation
+     * {@code fields} map, so unlike the Cucumber step a plain substring scan is
+     * exactly right here -- the words themselves have no legitimate reason to
+     * appear.
+     */
+    private void assertNoCredentialDisclosure(Response response) {
+        String body = response.body();
+        String lower = body.toLowerCase();
+
+        for (String forbidden : new String[]{"password", "passwordhash", "secret"}) {
+            assertFalse(lower.contains(forbidden),
+                    "response must not contain \"" + forbidden + "\": " + body);
+        }
+        for (String prefix : new String[]{"$2a$", "$2b$", "$2y$"}) {
+            assertFalse(body.contains(prefix),
+                    "response must not contain a BCrypt hash: " + body);
+        }
+        assertFalse(body.contains(PASSWORD),
+                "response must not echo the submitted password: " + body);
     }
 
     @Test
@@ -407,9 +450,12 @@ public class AuthEndpointsTest {
                 "/info is asserted public by health.feature");
         assertEquals(200, get("/verification", null).status(),
                 "/verification is called by the React home page before login");
-        assertEquals(404, get("/account/username/definitely-not-a-real-user", null).status(),
-                "/account/** is asserted public by account_retrieval.feature, so an unknown "
-                        + "username must answer 404 rather than 401");
+        // /account/** used to be on the public allowlist, which is how an
+        // anonymous caller could read any account's plaintext password. The
+        // routes and the allowlist entry are both gone, so this is now a 401
+        // from the filter chain rather than a 404 from a live handler.
+        assertEquals(401, get("/account/username/definitely-not-a-real-user", null).status(),
+                "/account/** is no longer public: an anonymous caller must get 401");
     }
 
     // ----------------------------------------------------------------- helpers
@@ -429,6 +475,15 @@ public class AuthEndpointsTest {
 
     private void remember(long userId) {
         createdUserIds.add(userId);
+    }
+
+    /** Records the id from a 201 registration response so cleanUp deletes that exact row. */
+    private void rememberFrom(Response registration) {
+        try {
+            remember(objectMapper.readTree(registration.body()).get("id").asLong());
+        } catch (Exception e) {
+            throw new IllegalStateException("could not read the registration response", e);
+        }
     }
 
     private static String registrationBody(String username) {

@@ -1,8 +1,24 @@
 server:
   port: ${PORT:10000}
+  error:
+    # Pinned again here, not just in application.yaml, so the public deployment
+    # keeps quiet error bodies even if a future edit loosens the base profile.
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+    include-binding-errors: never
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
 security:
   cors:
     allowed-origins: ${FRONTEND_ORIGIN}
+springdoc:
+  # The API documentation is a development and CI convenience. On the public
+  # Render deployment it would hand an anonymous caller a full map of every
+  # route and schema, so both the JSON and the UI are switched off here. The
+  # base profile leaves them on, so local work and the ghci build are unchanged.
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
